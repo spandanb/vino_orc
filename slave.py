@@ -50,9 +50,9 @@ class NodeClient(object):
 
 if __name__ == "__main__":
     #IP ADDR of VINO master
-	ip_addr = sys.argv[1] if len(sys.argv) > 1 else "10.12.1.53"
+    ip_addr = sys.argv[1] if len(sys.argv) > 1 else "10.12.1.53"
     port = 5672 
     client = NodeClient(ip_addr, port)
-	print " [x] Requesting server IP Address"
-	response = client.communicate()
-	print " [.] Got %r" % (response,)
+    print " [x] Requesting server IP Address"
+    response = client.communicate()
+    print " [.] Got %r" % (response,)
