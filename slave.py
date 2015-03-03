@@ -7,9 +7,10 @@ import sys
 The client for the node, responsible for talking to ViNO master 
 """
 class NodeClient(object):
-    def __init__(self, vino_master_ip):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                host=vino_master_ip))
+    def __init__(self, ip_addr, port):
+	    credentials = pika.PlainCredentials('guest', 'guest')
+	    parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
+        self.connection = pika.BlockingConnection(parameters)
 
         self.channel = self.connection.channel()
 
@@ -48,8 +49,10 @@ class NodeClient(object):
         return ip_addr
 
 if __name__ == "__main__":
-	vino_master_ip = sys.argv[1] if len(sys.argv) > 1 else 'localhost'
-    client = NodeClient(vino_master_ip)
+    #IP ADDR of VINO master
+	ip_addr = sys.argv[1] if len(sys.argv) > 1 else "10.12.1.53"
+    port = 5672 
+    client = NodeClient(ip_addr, port)
 	print " [x] Requesting server IP Address"
 	response = client.communicate()
 	print " [.] Got %r" % (response,)
