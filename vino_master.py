@@ -3,6 +3,7 @@ import pika
 import socket
 
 
+slaves = []
 connection = pika.BlockingConnection(pika.ConnectionParameters(
         host='localhost'))
 
@@ -17,17 +18,23 @@ def get_ip_addr():
     s.close()
     return ip_addr
 
+count = 0  
+def get_vxlan_ip():
+    global count 
+    count += 1
+    return "192.168.200.%s" % count
+
 def on_request(ch, method, props, body):
     client_ip_addr = body
-
+    global slaves
     print " [.] client IP Address: %s"  % client_ip_addr
-    response = get_ip_addr() 
-
-    ch.basic_publish(exchange='',
-                     routing_key=props.reply_to,
-                     properties=pika.BasicProperties(correlation_id = props.correlation_id),
-                     body=str(response))
-    ch.basic_ack(delivery_tag = method.delivery_tag)
+    slaves.append( (client_ip_addr, get_vxlan_ip()) )
+    if len(slaves) == 2: 
+        ch.basic_publish(exchange='',
+                         routing_key=props.reply_to,
+                         properties=pika.BasicProperties(correlation_id = props.correlation_id),
+                         body=slaves)
+        ch.basic_ack(delivery_tag = method.delivery_tag)
 
 channel.basic_qos(prefetch_count=1)
 channel.basic_consume(on_request, queue='rpc_queue')
