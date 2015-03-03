@@ -4,7 +4,13 @@ import pika
 import sys
 
 #Create a connection with the broker
-connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+host = '10.12.1.53' #'localhost'
+
+credentials = pika.PlainCredentials('guest', 'guest')
+parameters=pika.ConnectionParameters(host, 5672, '/', credentials)
+
+connection = pika.BlockingConnection(parameters)
+
 
 channel = connection.channel()
 
