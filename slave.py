@@ -8,8 +8,9 @@ The client for the node, responsible for talking to ViNO master
 """
 class NodeClient(object):
     def __init__(self):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                host='localhost'))
+	credentials = pika.PlainCredentials('guest', 'guest')
+	parameters=pika.ConnectionParameters('10.12.1.53', 5672, '/', credentials)
+        self.connection = pika.BlockingConnection(parameters)
 
         self.channel = self.connection.channel()
 
