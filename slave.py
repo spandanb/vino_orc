@@ -2,14 +2,15 @@
 import pika
 import uuid
 import socket
-
+import sys
 """
 The client for the node, responsible for talking to ViNO master 
 """
 class NodeClient(object):
-    def __init__(self):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                host='localhost'))
+    def __init__(self, ip_addr, port):
+        credentials = pika.PlainCredentials('guest', 'guest')
+        parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
+        self.connection = pika.BlockingConnection(parameters)
 
         self.channel = self.connection.channel()
 
@@ -48,7 +49,10 @@ class NodeClient(object):
         return ip_addr
 
 if __name__ == "__main__":
-	client = NodeClient()
-	print " [x] Requesting server IP Address"
-	response = client.communicate()
-	print " [.] Got %r" % (response,)
+    #IP ADDR of VINO master
+    ip_addr = sys.argv[1] if len(sys.argv) > 1 else "10.12.1.53"
+    port = 5672 
+    client = NodeClient(ip_addr, port)
+    print " [x] Requesting server IP Address"
+    response = client.communicate()
+    print " [.] Got %r" % (response,)
