@@ -4,10 +4,26 @@ import uuid
 import socket
 import sys
 import cPickle
+import threading 
 
-class VinoSlave(object):
+class VinoSlaveL(thread.Thread):
     """
-    The client for the slave, responsible for talking to ViNO master 
+    Listens to master for new connections
+    """	
+    def __init__(self, ip_addr, port):
+        """
+        Arguments:
+        ip_addr -- IP Address of VINO Master
+        port -- Port VINO Master is listening on
+        """
+	threading.Thread.__init__(self)
+
+    def start(self):
+	pass
+
+class VinoSlave(threading.Thread):
+    """
+    Sends self ip address to ViNO master 
     """
     def __init__(self, ip_addr, port):
         """
@@ -15,6 +31,7 @@ class VinoSlave(object):
         ip_addr -- IP Address of VINO Master
         port -- Port VINO Master is listening on
         """
+	threading.Thread.__init__(self)
         credentials = pika.PlainCredentials('guest', 'guest')
         parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
         self.connection = pika.BlockingConnection(parameters)
