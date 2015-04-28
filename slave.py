@@ -3,11 +3,18 @@ import pika
 import uuid
 import socket
 import sys
-"""
-The client for the node, responsible for talking to ViNO master 
-"""
-class NodeClient(object):
+import cPickle
+
+class VinoSlave(object):
+    """
+    The client for the slave, responsible for talking to ViNO master 
+    """
     def __init__(self, ip_addr, port):
+        """
+        Arguments:
+        ip_addr -- IP Address of VINO Master
+        port -- Port VINO Master is listening on
+        """
         credentials = pika.PlainCredentials('guest', 'guest')
         parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
         self.connection = pika.BlockingConnection(parameters)
@@ -37,11 +44,16 @@ class NodeClient(object):
                                          correlation_id = self.corr_id,
                                          ),
                                    body=str(self.get_ip_addr()))
+	
+	#Loop until self.response is written out
         while self.response is None:
             self.connection.process_data_events()
         return self.response
 
     def get_ip_addr(self):
+	"""
+	Returns IP address 	
+	"""
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8",80))
         ip_addr = s.getsockname()[0]
@@ -52,7 +64,7 @@ if __name__ == "__main__":
     #IP ADDR of VINO master
     ip_addr = sys.argv[1] if len(sys.argv) > 1 else "10.12.1.53"
     port = 5672 
-    client = NodeClient(ip_addr, port)
+    client = VinoSlave(ip_addr, port)
     print " [x] Requesting server IP Address"
-    response = client.communicate()
+    response = cPickle.loads(client.communicate())
     print " [.] Got %r" % (response,)
