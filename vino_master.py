@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 import pika
 import socket
 import cPickle
@@ -11,18 +12,9 @@ class VinoMasterW(threading.Thread):
     Push information about new slaves to 
     existing slaves
     """
-    """
-    Sends self ip address to ViNO master 
-    """
-    def __init__(self, ip_addr, port):
-        """
-        Arguments:
-        ip_addr -- IP Address of VINO Master
-        port -- Port VINO Master is listening on
-        """
-	threading.Thread.__init__(self)
-        credentials = pika.PlainCredentials('guest', 'guest')
-        parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
+    def __init__(self):
+        threading.Thread.__init__(self)
+        parameters = pika.ConnectionParameters(host='localhost')
         self.connection = pika.BlockingConnection(parameters)
 
         self.channel = self.connection.channel()
@@ -38,9 +30,9 @@ class VinoMasterW(threading.Thread):
             self.response = body
 
     def communicate(self):
-	""" 
-	Communicates with the ViNO Master
-	"""
+    """ 
+    Communicates with the ViNO Master
+    """
         self.response = None
         self.corr_id = str(uuid.uuid4())
         self.channel.basic_publish(exchange='',
@@ -50,21 +42,22 @@ class VinoMasterW(threading.Thread):
                                          correlation_id = self.corr_id,
                                          ),
                                    body=str(self.get_ip_addr()))
-	
-	#Loop until self.response is written out
+    
+        #Loop until self.response is written out
         while self.response is None:
             self.connection.process_data_events()
         return self.response
 
     def get_ip_addr(self):
-	"""
-	Returns IP address 	
-	"""
+    """
+    Returns IP address  
+    """
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8",80))
         ip_addr = s.getsockname()[0]
         s.close()
         return ip_addr
+
 class VinoMasterL(threading.Thread):
     """ VINO Master- listens for new slaves and responds, 
     i.e.pushes information about existing slaves to this slave
@@ -76,9 +69,10 @@ class VinoMasterL(threading.Thread):
         #Used to assign increasing (unique) vxlan ip addresses
         #Value of last octet 
         self.octet_val = 0 
-
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-            host='localhost'))
+        parameters = pika.ConnectionParameters(host='localhost')
+        #This establishes connection to the rabbitmq server
+        #rabbitmq-server is running on same machine as vino-master
+        self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue='rpc_queue')
         self.channel.basic_qos(prefetch_count=1)
