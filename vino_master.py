@@ -20,7 +20,7 @@ class VinoMasterW(threading.Thread):
         ip_addr -- IP Address of VINO Master
         port -- Port VINO Master is listening on
         """
-	    threading.Thread.__init__(self)
+	threading.Thread.__init__(self)
         credentials = pika.PlainCredentials('guest', 'guest')
         parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
         self.connection = pika.BlockingConnection(parameters)
