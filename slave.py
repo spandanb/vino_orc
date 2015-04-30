@@ -10,6 +10,7 @@ from utils import get_ip_addr
 class VinoSlave():
     """
     Sends self ip address to ViNO master 
+    and listens for incommu
     """
     def __init__(self, ip_addr, port):
         """
@@ -75,12 +76,10 @@ class VinoSlave():
         """
         When new slave broadcast
         """
-        
         body = cPickle.loads(body)
         print "Received: %r" % (body,)
         self.slaves[body[0]] = body[1]
         
-
     def start_listening(self):
         """
         Listen for new slaves
