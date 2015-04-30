@@ -6,7 +6,7 @@ import sys
 import cPickle
 import threading 
 
-class VinoSlaveL(thread.Thread):
+class VinoSlaveL(threading.Thread):
     """
     Listens to master for new connections
     """ 
@@ -89,7 +89,7 @@ class VinoSlave(threading.Thread):
 
         #For listening for new slaves
         self.channel.exchange_declare(exchange='logs', type='fanout')
-        result = channel.queue_declare(exclusive=True)
+        result = self.channel.queue_declare(exclusive=True)
         queue_name = result.method.queue
 
         self.channel.queue_bind(exchange='logs',
@@ -104,9 +104,9 @@ class VinoSlave(threading.Thread):
             self.response = body
 
     def communicate(self):
-    """ 
-    Communicates with the ViNO Master
-    """
+        """ 
+        Communicates with the ViNO Master
+        """
         self.response = None
         self.corr_id = str(uuid.uuid4())
         self.channel.basic_publish(exchange='',
@@ -126,9 +126,9 @@ class VinoSlave(threading.Thread):
         print " [x] %r" % (body,)
 
     def get_ip_addr(self):
-    """
-    Returns IP address  
-    """
+        """
+        Returns IP address  
+        """
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8",80))
         ip_addr = s.getsockname()[0]
