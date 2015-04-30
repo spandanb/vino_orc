@@ -6,6 +6,7 @@ import cPickle
 import threading
 
 #TODO: race conditions if 2 slaves join at the same time?
+#TODO: handle clients die 
 
 class VinoMasterW(threading.Thread):
     """
@@ -74,9 +75,15 @@ class VinoMasterL(threading.Thread):
         #rabbitmq-server is running on same machine as vino-master
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()
+
+        #for new slave 
         self.channel.queue_declare(queue='rpc_queue')
         self.channel.basic_qos(prefetch_count=1)
         self.channel.basic_consume(self.on_request, queue='rpc_queue')
+
+        #for existing slaves
+        self.channel.exchange_declare(exchange='logs', type='fanout')
+
 
     def get_ip_addr(self):
         """
@@ -105,13 +112,28 @@ class VinoMasterL(threading.Thread):
                              body=response) 
             ch.basic_ack(delivery_tag = method.delivery_tag)
 
+    def broadcast(self, message="Hello World"):
+        """
+        broadcast to existing slaves
+        """
+        print " [x] Sent %r" % (message,)
+        self.channel.basic_publish(exchange='logs',
+                              routing_key='',
+                              body=message)
+
+
     def start_consuming(self):
+        """
+        Start listening for new slaves
+        """
         print " [x] Awaiting RPC requests"
         self.channel.start_consuming()
 
     def run(self):
         self.start_consuming()
 
+    def cleanup(self):
+        self.connection.close()
 
 if __name__ == "__main__":
     master = VinoMasterL()

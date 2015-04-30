@@ -8,8 +8,7 @@ parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
 connection = pika.BlockingConnection(parameters)
 channel = connection.channel()
 
-channel.exchange_declare(exchange='logs',
-                         type='fanout')
+channel.exchange_declare(exchange='logs', type='fanout')
 
 result = channel.queue_declare(exclusive=True)
 queue_name = result.method.queue
