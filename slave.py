@@ -80,12 +80,24 @@ class VinoSlave(threading.Thread):
         self.connection = pika.BlockingConnection(parameters)
 
         self.channel = self.connection.channel()
-
+        #For first contact 
         result = self.channel.queue_declare(exclusive=True)
         self.callback_queue = result.method.queue
 
         self.channel.basic_consume(self.on_response, no_ack=True,
                                    queue=self.callback_queue)
+
+        #For listening for new slaves
+        self.channel.exchange_declare(exchange='logs', type='fanout')
+        result = channel.queue_declare(exclusive=True)
+        queue_name = result.method.queue
+
+        self.channel.queue_bind(exchange='logs',
+                        queue=queue_name)
+
+        self.channel.basic_consume(self.callback,
+                              queue=queue_name,
+                              no_ack=True)
 
     def on_response(self, ch, method, props, body):
         if self.corr_id == props.correlation_id:
@@ -110,6 +122,9 @@ class VinoSlave(threading.Thread):
             self.connection.process_data_events()
         return self.response
 
+    def callback(self, ch, method, properties, body):
+        print " [x] %r" % (body,)
+
     def get_ip_addr(self):
     """
     Returns IP address  
@@ -120,6 +135,9 @@ class VinoSlave(threading.Thread):
         s.close()
         return ip_addr
 
+    def start_listening(self):
+        self.channel.start_consuming()
+
 if __name__ == "__main__":
     #IP ADDR of VINO master
     ip_addr = sys.argv[1] if len(sys.argv) > 1 else "10.12.1.53"
@@ -128,3 +146,6 @@ if __name__ == "__main__":
     print " [x] Requesting server IP Address"
     response = cPickle.loads(client.communicate())
     print " [.] Got %r" % (response,)
+
+    print "Now listening for new slaves"
+    client.start_listening()
