@@ -1,16 +1,14 @@
 #!/usr/bin/env python
 import pika
 import uuid
-import socket
 import sys
 import cPickle
-import threading 
 from utils import get_ip_addr
 
 class VinoSlave():
     """
     Sends self ip address to ViNO master 
-    and listens for incommu
+    and listens for incomming information about new clients
     """
     def __init__(self, ip_addr, port):
         """
@@ -22,7 +20,6 @@ class VinoSlave():
         parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()
-        self.slaves = {}
 
         #For first contact 
         result = self.channel.queue_declare(exclusive=True)

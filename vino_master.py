@@ -2,7 +2,6 @@
 
 import pika
 import cPickle
-import threading
 
 #TODO: race conditions if 2 slaves join at the same time?
 #TODO: handle conditions like clients die 
@@ -48,10 +47,10 @@ class VinoMaster(object):
         and broadcast info to existing slaves
         """
         slave_ip = body
-        print " [.] slave IP Address: %s"  % client_ip_addr
-        if slave_ip not in slaves:
-            slaves[slave_ip] = self.get_vxlan_ip()
-        new_slave = (slave_ip, slaves[slave_ip])
+        print " [.] slave IP Address: %s"  % slave_ip
+        if slave_ip not in self.slaves:
+            self.slaves[slave_ip] = self.get_vxlan_ip()
+        new_slave = (slave_ip, self.slaves[slave_ip])
         #Response to new slave
         response = cPickle.dumps(self.slaves, cPickle.HIGHEST_PROTOCOL)
         ch.basic_publish(exchange='',
@@ -61,7 +60,7 @@ class VinoMaster(object):
         ch.basic_ack(delivery_tag = method.delivery_tag)
         
         #Broadcast new slave    
-        print " [x] Sent %r" % new_slave 
+        print " [x] Sent {}".format(new_slave)
         self.broadcast(message=
             cPickle.dumps(new_slave, cPickle.HIGHEST_PROTOCOL))
 
