@@ -1,36 +1,87 @@
 #!/usr/bin/env python
+
 import pika
-import socket
+import cPickle
 
+#TODO: race conditions if 2 slaves join at the same time?
+#TODO: handle conditions like clients die 
 
-connection = pika.BlockingConnection(pika.ConnectionParameters(
-        host='localhost'))
+class VinoMaster(object):
+    """ VINO Master- listens for new slaves and responds, 
+    i.e.pushes information about existing slaves to this slave
+    This is based on the RPC design pattern
+    Also broadcasts info about new slaves to old slaves
+    """
+    def __init__(self):
+        self.slaves = {}
+        #Used to assign increasing (unique) vxlan ip addresses
+        #Value of last octet 
+        self.octet_val = 0 
+        parameters = pika.ConnectionParameters(host='localhost')
+        #This establishes connection to the rabbitmq server
+        #rabbitmq-server is running on same machine as vino-master
+        self.connection = pika.BlockingConnection(parameters)
+        self.channel = self.connection.channel()
 
-channel = connection.channel()
+        #for new slave 
+        self.channel.queue_declare(queue='rpc_queue')
+        self.channel.basic_qos(prefetch_count=1)
+        self.channel.basic_consume(self.on_new_slave, queue='rpc_queue')
 
-channel.queue_declare(queue='rpc_queue')
+        #for existing slaves
+        self.channel.exchange_declare(exchange='logs', type='fanout')
 
-def get_ip_addr():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("8.8.8.8",80))
-    ip_addr = s.getsockname()[0]
-    s.close()
-    return ip_addr
+    def get_vxlan_ip(self):
+        """
+        Returns a unique VXLAN IP address
+        e.g. 192.168.200.1
+        Note: This will only work for upto 255 hosts
+        """
+        self.octet_val += 1
+        return "192.168.200.%s" % self.octet_val
+    
+    def on_new_slave(self, ch, method, props, body):
+        """
+        Response when new slave contacts masters
+        Record that slave
+        and broadcast info to existing slaves
+        """
+        slave_ip = body
+        print " [.] slave IP Address: %s"  % slave_ip
+        if slave_ip not in self.slaves:
+            self.slaves[slave_ip] = self.get_vxlan_ip()
+        new_slave = (slave_ip, self.slaves[slave_ip])
+        #Response to new slave
+        response = cPickle.dumps(self.slaves, cPickle.HIGHEST_PROTOCOL)
+        ch.basic_publish(exchange='',
+                         routing_key=props.reply_to,
+                         properties=pika.BasicProperties(correlation_id = props.correlation_id),
+                         body=response) 
+        ch.basic_ack(delivery_tag = method.delivery_tag)
+        
+        #Broadcast new slave    
+        print " [x] Sent {}".format(new_slave)
+        self.broadcast(message=
+            cPickle.dumps(new_slave, cPickle.HIGHEST_PROTOCOL))
 
-def on_request(ch, method, props, body):
-    client_ip_addr = body
+    def broadcast(self, message):
+        """
+        broadcast to existing slaves
+        """
+        self.channel.basic_publish(exchange='logs',
+                              routing_key='',
+                              body=message)
 
-    print " [.] client IP Address: %s"  % client_ip_addr
-    response = get_ip_addr() 
+    def start_listening(self):
+        """
+        Start listening for new slaves
+        """
+        print " [x] Awaiting connections from slaves"
+        self.channel.start_consuming()
 
-    ch.basic_publish(exchange='',
-                     routing_key=props.reply_to,
-                     properties=pika.BasicProperties(correlation_id = props.correlation_id),
-                     body=str(response))
-    ch.basic_ack(delivery_tag = method.delivery_tag)
+    def cleanup(self):
+        self.connection.close()
 
-channel.basic_qos(prefetch_count=1)
-channel.basic_consume(on_request, queue='rpc_queue')
-
-print " [x] Awaiting RPC requests"
-channel.start_consuming()
+if __name__ == "__main__":
+    master = VinoMaster()
+    master.start_listening()

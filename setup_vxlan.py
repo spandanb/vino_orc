@@ -14,7 +14,7 @@ if __name__ == "__main__":
 
     #open the file
     with open( TEMPLATE_FILE ) as template:
-        #read it
+        #read template file
         src = Template( template.read() )
         result = src.substitute({'VXLAN_IP': VXLAN_IP, 
             'REMOTE_IP': REMOTE_IP})
