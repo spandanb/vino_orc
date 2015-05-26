@@ -32,6 +32,9 @@ run_vino_slave()
     #Creates screen named 'my_screen', with tab named 'shell' that runs bash
     screen -d -m -S my_screen -t shell -s bash
     sleep 2
+    #Create status line
+    screen -r my_screen -X hardstatus alwayslastline '%{= .} %-Lw%{= .}%> %n%f %t*%{= .}%+Lw%< %-=%{g}(%{d}%H/%l%{g})'
+    sleep 2
     #Similar to above, creates tab named my_screen_tab
     screen -S my_screen -X screen -t my_screen_tab
     sleep 2
@@ -40,8 +43,6 @@ run_vino_slave()
     sleep 2
     #Run vino slave
     screen -S my_screen -p my_screen_tab -X stuff 'python vino_slave.py'`echo -ne '\015'`
-    sleep 2
-    screen -r my_screen -X hardstatus alwayslastline '%{= .} %-Lw%{= .}%> %n%f %t*%{= .}%+Lw%< %-=%{g}(%{d}%H/%l%{g})'
 }
 
 #Processing Logic
