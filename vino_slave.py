@@ -88,9 +88,12 @@ if __name__ == "__main__":
     ip_addr = sys.argv[1] if len(sys.argv) > 1 else "10.12.1.53"
     port = 5672 
     node = VinoSlave(ip_addr, port)
+    
+    #This is for initial broadcast
     print " [x] Requesting server IP Address"
-    response = node.contact_master()
-    print " [.] Got %r" % (response,)
+    #response = node.contact_master()
+    #print " [.] Got %r" % (response,)
 
+    #This for listening for new slaves
     print "Now listening for new slaves"
     node.start_listening()
