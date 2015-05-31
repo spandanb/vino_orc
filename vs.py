@@ -99,15 +99,18 @@ class VinoSlave(object):
         """
         Create tunnel with new_ip
         """
-        cmd = "sudo ovs-vsctl add-port br0 vxlan0 -- set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
+        #cmd = "sudo ovs-vsctl add-port br0 vxlan0 -- set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
+        cmd = "sudo ovs-vsctl set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
         sp.call(cmd.format(new_ip).split())
             
     def create_tunnels_init(self):
         """
         Multi host version of ^
         """
-        cmd = "sudo ovs-vsctl add-port br0 vxlan0 -- set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
-        pdb.set_trace()
+        #cmd = "sudo ovs-vsctl add-port br0 vxlan0"
+        #sp.call(cmd.format(ip_addr).split())
+
+        cmd = "sudo ovs-vsctl set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
         remote_ips = self.slaves.keys()
         remote_ips.remove(self.ip_addr)
         for ip_addr in remote_ips:

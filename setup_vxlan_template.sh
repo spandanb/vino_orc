@@ -22,3 +22,5 @@ mac_addr=`sudo ovs-vsctl get interface p0 mac_in_use`
 sudo ovs-vsctl set interface p0 mac=$$mac_addr
 sudo ifconfig p0 $VXLAN_IP/24 up
 
+#Add virtual port
+sudo ovs-vsctl add-port br0 vxlan0
