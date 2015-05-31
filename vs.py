@@ -88,7 +88,7 @@ class VinoSlave(object):
             print " [x] Initializing mesh"
         else:
             new = self.diff(new_slaves, self.slaves)
-            print " [x] New Slave is {}".format((new, self.slaves[new]))
+            print " [x] New Slave is {}".format((new, new_slaves[new]))
     
         self.slaves = new_slaves
 
