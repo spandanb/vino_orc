@@ -2,7 +2,7 @@ import pika
 from cPickle import loads
 from utils import get_ip_addr
 
-def fuse():
+def vinoSlave():
     ip_addr = "10.12.1.53" #Master
     port = 5672 
     credentials = pika.PlainCredentials('guest', 'guest')
@@ -81,11 +81,17 @@ class VinoSlave(object):
         callback for something received 
         """
         new_slaves = loads(body)
-        new = self.diff(new_slaves, self.slaves)
-        self.slaves = new_slaves
-        print " [x] %r" % (self.slaves,)
-        print " [x] New Slave is {}".format((new, self.slaves[new]))
+        print " [x] %r" % (new_slaves,)
+
+        #New init
+        if not self.slaves:
+            print " [x] Initializing mesh"
+        else:
+            new = self.diff(new_slaves, self.slaves)
+            print " [x] New Slave is {}".format((new, self.slaves[new]))
     
+        self.slaves = new_slaves
+
     def hello(self):
         """
         Send initial message
