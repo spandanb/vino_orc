@@ -1,5 +1,6 @@
 import pika
-
+from cPickle import loads
+from utils import get_ip_addr
 
 def fuse():
     ip_addr = "10.12.1.53" #Master
@@ -71,13 +72,16 @@ class VinoSlave(object):
         """
         callback for something received 
         """
-        print " [x] %r" % (body,)
+        new_slaves = loads(body)
+        #compute_diff(new_slaves, self.slaves)
+        self.slaves = new_slaves
+        print " [x] %r" % (self.slaves,)
     
     def hello(self):
         """
         Send initial message
         """
-        message = 'Hello Master'
+        message = get_ip_addr() 
         self.channel.basic_publish(exchange='',
                               routing_key='hello',
                               body=message)
