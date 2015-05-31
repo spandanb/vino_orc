@@ -5,7 +5,9 @@
 #$VXLAN_IP is the assigned ip address of this host
 #$REMOTE_IP is the internal (non-vxlan ip of the remote host)
 
+#Create bridge named br0
 sudo ovs-vsctl add-br br0
+
 sudo ovs-vsctl add-port br0 p0 -- set interface p0 type=internal
 
 mac_addr=`sudo ovs-vsctl get interface p0 mac_in_use`

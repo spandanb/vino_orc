@@ -16,3 +16,15 @@ The goal is to be able to:
 2) Boot multiple slaves
 3) Create VXLAN tunnel- mesh between masters and slaves
 4) Dynamically add slaves that can be meshed in
+
+Next Steps
+==========
+Connect the ovs in slaves to controller (RYU)
+    possibly many controllers, managing different slices?
+Connect controllers using Janus
+    use janus port register/de-register
+
+Use fab for configuring slaves- centralized approach
+    master executes commands on slaves
+Use coreos + containers to configure slaves- distributed approach
+    -possibly use fabfile to start this configuration
