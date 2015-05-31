@@ -1,4 +1,6 @@
 import socket
+import subprocess as sp
+from string import Template
 
 def get_ip_addr(return_string=True):
     """
@@ -20,3 +22,4 @@ def get_vxlan_ip(n):
     quot, rem = divmod(n, 254)  
     ip_addr = "192.168.%s.%s" % (quot + 1, rem + 1) 
     return ip_addr
+
