@@ -1,6 +1,10 @@
 import pika
 from cPickle import loads
 from utils import get_ip_addr
+import sys
+import subprocess as sp
+from string import Template
+import pdb
 
 def vinoSlave():
     ip_addr = "10.12.1.53" #Master
@@ -82,15 +86,14 @@ class VinoSlave(object):
                 template="setup_vxlan_template.sh"):
         
         infile = open(template)
-        src = Template( filein.read() )
+        src = Template( infile.read() )
         result = src.substitute(subs)
         infile.close()
         
         ofile = open(outfile, 'w')
         ofile.write(result)
         ofile.close()
-    
-        sp.call(["bash", outfile])
+        sp.call(["bash", "./" + outfile])
     
     def create_tunnel(self, new_ip):
         """
@@ -104,6 +107,7 @@ class VinoSlave(object):
         Multi host version of ^
         """
         cmd = "sudo ovs-vsctl add-port br0 vxlan0 -- set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
+        pdb.set_trace()
         remote_ips = self.slaves.keys()
         remote_ips.remove(self.ip_addr)
         for ip_addr in remote_ips:
@@ -121,16 +125,16 @@ class VinoSlave(object):
             print " [x] Initializing mesh"
             self.vxlan_ip = new_slaves[self.ip_addr]
             subs = {'VXLAN_IP': self.vxlan_ip, 'CONTR_ADDR':self.contr_addr} 
-            setup_vxlan(subs)
-
+            self.setup_vxlan(subs)
+            self.slaves = new_slaves
             self.create_tunnels_init()
             
         else:
             new_ip = self.diff(new_slaves, self.slaves)
             print " [x] New Slave is {}".format((new_ip, new_slaves[new_ip]))
             self.create_tunnel(new_ip)
+            self.slaves = new_slaves
 
-        self.slaves = new_slaves
 
     def hello(self):
         """

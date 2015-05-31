@@ -1,6 +1,4 @@
 import socket
-import subprocess as sp
-from string import Template
 
 def get_ip_addr(return_string=True):
     """
