@@ -1,6 +1,10 @@
 import pika
 from cPickle import loads
 from utils import get_ip_addr
+import sys
+import subprocess as sp
+from string import Template
+import pdb
 
 def vinoSlave():
     ip_addr = "10.12.1.53" #Master
@@ -67,14 +71,50 @@ class VinoSlave(object):
                               queue=queue_name,
                               no_ack=True)
 
+        self.contr_addr = "10.12.11.34:6633"
         self.ip_addr = get_ip_addr()
         self.slaves = {}
 
     def diff(self, new, old):
+        #Gives new ip address in new [list]
         old_keys = old.keys()
         for key in new.keys():
             if key not in old_keys:
                 return key
+
+    def setup_vxlan(self, subs, outfile="setup_vxlan.sh",
+                template="setup_vxlan_template.sh"):
+        
+        infile = open(template)
+        src = Template( infile.read() )
+        result = src.substitute(subs)
+        infile.close()
+        
+        ofile = open(outfile, 'w')
+        ofile.write(result)
+        ofile.close()
+        sp.call(["bash", "./" + outfile])
+    
+    def create_tunnel(self, new_ip):
+        """
+        Create tunnel with new_ip
+        """
+        #cmd = "sudo ovs-vsctl add-port br0 vxlan0 -- set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
+        cmd = "sudo ovs-vsctl set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
+        sp.call(cmd.format(new_ip).split())
+            
+    def create_tunnels_init(self):
+        """
+        Multi host version of ^
+        """
+        #cmd = "sudo ovs-vsctl add-port br0 vxlan0"
+        #sp.call(cmd.format(ip_addr).split())
+
+        cmd = "sudo ovs-vsctl set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
+        remote_ips = self.slaves.keys()
+        remote_ips.remove(self.ip_addr)
+        for ip_addr in remote_ips:
+            sp.call(cmd.format(ip_addr).split())
 
     def callback(self, ch, method, properties, body):
         """
@@ -86,11 +126,18 @@ class VinoSlave(object):
         #New init
         if not self.slaves:
             print " [x] Initializing mesh"
+            self.vxlan_ip = new_slaves[self.ip_addr]
+            subs = {'VXLAN_IP': self.vxlan_ip, 'CONTR_ADDR':self.contr_addr} 
+            self.setup_vxlan(subs)
+            self.slaves = new_slaves
+            self.create_tunnels_init()
+            
         else:
-            new = self.diff(new_slaves, self.slaves)
-            print " [x] New Slave is {}".format((new, new_slaves[new]))
-    
-        self.slaves = new_slaves
+            new_ip = self.diff(new_slaves, self.slaves)
+            print " [x] New Slave is {}".format((new_ip, new_slaves[new_ip]))
+            self.create_tunnel(new_ip)
+            self.slaves = new_slaves
+
 
     def hello(self):
         """

@@ -2,10 +2,10 @@
 
 #Create VXLAN Tunnel between 2 hosts
 #This is a template file
-#$VXLAN_IP is the assigned ip address of this host
-#$REMOTE_IP is the internal (non-vxlan ip of the remote host)
-#$CONTR_ADDR is the <ip_addr>:<port> of the controller
-#$INTERNAL_IP is the vxlan ip of this bridge
+#$$VXLAN_IP is the assigned ip address of this host
+#$$REMOTE_IP is the internal (non-vxlan ip of the remote host)
+#$$CONTR_ADDR is the <ip_addr>:<port> of the controller
+#$$INTERNAL_IP is the vxlan ip of this bridge
 
 #Create bridge named br0
 sudo ovs-vsctl add-br br0
@@ -22,7 +22,5 @@ mac_addr=`sudo ovs-vsctl get interface p0 mac_in_use`
 sudo ovs-vsctl set interface p0 mac=$$mac_addr
 sudo ifconfig p0 $VXLAN_IP/24 up
 
-#Uses a fixed vni, allows all VMs to talk to all others, can have 
-# finer control
-#Do the following for all remote hosts
-#sudo ovs-vsctl add-port br0 vxlan0 -- set interface vxlan0 type=vxlan options:remote_ip=$REMOTE_IP options:keys=01
+#Add virtual port
+sudo ovs-vsctl add-port br0 vxlan0
