@@ -14,8 +14,12 @@ screen -d -m -S my_screen -t shell -s bash
 echo "Creating tab"
 screen -S my_screen -X screen -t my_screen_tab
 
+sleep 2
+
 echo "running slave"
-screen -S my_screen -p my_screen_tab -X stuff 'python vs.py'`echo -ne '\015'`
+#screen -S my_screen -p my_screen_tab -X stuff 'python vs.py'`echo -ne '\015'`
+screen -S my_screen -p 1 -X stuff 'python vs.py
+'
 
 
 
