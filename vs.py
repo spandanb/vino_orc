@@ -66,22 +66,31 @@ class VinoSlave(object):
         self.channel.basic_consume(self.callback,
                               queue=queue_name,
                               no_ack=True)
+
+        self.ip_addr = get_ip_addr()
         self.slaves = {}
+
+    def diff(self, new, old):
+        old_keys = old.keys()
+        for key in new.keys():
+            if key not in old_keys:
+                return key
 
     def callback(self, ch, method, properties, body):
         """
         callback for something received 
         """
         new_slaves = loads(body)
-        #compute_diff(new_slaves, self.slaves)
+        new = diff(new_slaves, self.slaves)
         self.slaves = new_slaves
         print " [x] %r" % (self.slaves,)
+        print "New Slave is %s" % ((new, self.slaves[new]))
     
     def hello(self):
         """
         Send initial message
         """
-        message = get_ip_addr() 
+        message = self.ip_addr 
         self.channel.basic_publish(exchange='',
                               routing_key='hello',
                               body=message)
