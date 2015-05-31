@@ -81,10 +81,10 @@ class VinoSlave(object):
         callback for something received 
         """
         new_slaves = loads(body)
-        new = diff(new_slaves, self.slaves)
+        new = self.diff(new_slaves, self.slaves)
         self.slaves = new_slaves
         print " [x] %r" % (self.slaves,)
-        print "New Slave is %s" % ((new, self.slaves[new]))
+        print " [x] New Slave is {}".format((new, self.slaves[new]))
     
     def hello(self):
         """
