@@ -50,8 +50,14 @@ class VinoSlave(object):
         port = 5672 
         credentials = pika.PlainCredentials('guest', 'guest')
         parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
-        connection = pika.BlockingConnection(parameters)
         
+        while True:
+            try
+                connection = pika.BlockingConnection(parameters)
+                break
+            except pika.exceptions.AMQPConnectionError:
+                pass
+            
         self.channel = connection.channel()
     
         #configire for receive
