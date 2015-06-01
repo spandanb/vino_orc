@@ -12,7 +12,7 @@ sudo ovs-vsctl add-br br0
 
 #Set and configure controller for br0
 sudo ovs-vsctl set-controller br0 tcp:$CONTR_ADDR
-ssudo ovs-vsct set-fail-mode br0 secure
+sudo ovs-vsct set-fail-mode br0 secure
 sudo ovs-vsctl set controller br0 connection-mode=out-of-band
 
 #Add internal port
