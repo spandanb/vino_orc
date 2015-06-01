@@ -52,7 +52,7 @@ class VinoSlave(object):
         parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
         
         while True:
-            try
+            try:
                 connection = pika.BlockingConnection(parameters)
                 break
             except pika.exceptions.AMQPConnectionError:
