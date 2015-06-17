@@ -1,3 +1,4 @@
+chdir /home/ubuntu/vino_orc
 screen -t sh
 startup_message off
 hardstatus alwayslastline
