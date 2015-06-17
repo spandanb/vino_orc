@@ -11,12 +11,8 @@ cd /home/ubuntu/vino_orc
 echo "Creating screen session"
 screen -d -m -S my_screen -t shell -s bash
 
-sleep 2
-
 echo "Creating tab"
 screen -S my_screen -X screen -t my_screen_tab
-
-sleep 2
 
 echo "running slave"
 #screen -S my_screen -p my_screen_tab -X stuff 'python vs.py'`echo -ne '\015'`
