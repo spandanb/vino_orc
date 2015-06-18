@@ -6,44 +6,6 @@ import subprocess as sp
 from string import Template
 import pdb
 
-def vinoSlave():
-    ip_addr = "10.12.1.53" #Master
-    port = 5672 
-    credentials = pika.PlainCredentials('guest', 'guest')
-    parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
-    connection = pika.BlockingConnection(parameters)
-    
-    channel = connection.channel()
-
-    #configire for receive
-    channel.queue_declare(queue='hello')
-
-    #configure for send
-    channel.exchange_declare(exchange='bcast', type='fanout')
-
-    result = channel.queue_declare(exclusive=True)
-    queue_name = result.method.queue
-    
-    channel.queue_bind(exchange='bcast',
-                       queue=queue_name)
-    
-    #callback for something received 
-    def callback(ch, method, properties, body):
-        print " [x] %r" % (body,)
-   
-    channel.basic_publish(exchange='',
-                          routing_key='hello',
-                          body='Hello World!')
-    print " [x] Sent 'Hello World!'"
-    
-    #This configures consume function, but doesn't 
-    # start consuming
-    channel.basic_consume(callback,
-                          queue=queue_name,
-                          no_ack=True)
-
-    channel.start_consuming()
-
 class VinoSlave(object):
     def __init__(self):
         ip_addr = "10.12.1.53" #Master
@@ -51,6 +13,7 @@ class VinoSlave(object):
         credentials = pika.PlainCredentials('guest', 'guest')
         parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
         
+        #Sometimes initial connection does not work
         while True:
             try:
                 connection = pika.BlockingConnection(parameters)
@@ -106,17 +69,18 @@ class VinoSlave(object):
         Create tunnel with new_ip
         """
         #cmd = "sudo ovs-vsctl add-port br0 vxlan0 -- set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
-        cmd = "sudo ovs-vsctl set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
+        cmd = "sudo ovs-vsctl set interface vxlan0 type=vxlan options:remote_ip={} options:key=01"
         sp.call(cmd.format(new_ip).split())
             
     def create_tunnels_init(self):
         """
         Multi host version of ^
+        Create tunnels with all existing hosts
         """
         #cmd = "sudo ovs-vsctl add-port br0 vxlan0"
         #sp.call(cmd.format(ip_addr).split())
 
-        cmd = "sudo ovs-vsctl set interface vxlan0 type=vxlan options:remote_ip={} options:keys=01"
+        cmd = "sudo ovs-vsctl set interface vxlan0 type=vxlan options:remote_ip={} options:key=01"
         remote_ips = self.slaves.keys()
         remote_ips.remove(self.ip_addr)
         for ip_addr in remote_ips:
@@ -133,6 +97,7 @@ class VinoSlave(object):
         if not self.slaves:
             print " [x] Initializing mesh"
             self.vxlan_ip = new_slaves[self.ip_addr]
+            #Substitution dictionary
             subs = {'VXLAN_IP': self.vxlan_ip, 'CONTR_ADDR':self.contr_addr} 
             self.setup_vxlan(subs)
             self.slaves = new_slaves
@@ -162,7 +127,6 @@ class VinoSlave(object):
         self.channel.start_consuming()
     
 if __name__ == "__main__":
-	#fuse()
     slave = VinoSlave()
     slave.hello()
     slave.listen()
