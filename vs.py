@@ -5,10 +5,13 @@ import sys
 import subprocess as sp
 from string import Template
 import pdb
+import imp
 
 class VinoSlave(object):
     def __init__(self):
-        ip_addr = "10.12.1.53" #Master
+        master_ip_module = imp.load_source('module.name', '/home/ubuntu/master_ip.py')
+        ip_addr = master_ip_module.master_ip
+        #ip_addr = "10.12.1.53" #Master
         port = 5672 
         credentials = pika.PlainCredentials('guest', 'guest')
         parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
