@@ -10,8 +10,9 @@ import imp
 class VinoSlave(object):
     def __init__(self):
         master_ip_module = imp.load_source('module.name', '/home/ubuntu/master_ip.py')
-        ip_addr = master_ip_module.master_ip
+        #ip_addr = master_ip_module.master_ip
         #ip_addr = "10.12.1.53" #Master
+        ip_addr ="10.12.1.73"
         port = 5672 
         credentials = pika.PlainCredentials('guest', 'guest')
         parameters=pika.ConnectionParameters(ip_addr, port, '/', credentials)
