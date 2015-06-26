@@ -48,7 +48,7 @@ class Vinod(object):
         Mesh all the hosts together
         """
         #Controller is running on self
-        contrIP = utils.get_ip_addr()
+        contrIP = utils.get_ip_addr() + ":6633"
 
         for i, ip in enumerate(self.IPList): 
             
@@ -75,7 +75,7 @@ class Vinod(object):
             time.sleep(1)
             self.ssh.exec_command("sudo ovs-vsctl set interface p0 mac={}".format(stdin))
             time.sleep(1)
-            self.ssh.exec_command("sudo ifconfig p0 {}/24 up".format(self.vxlan(ip)))
+            self.ssh.exec_command("sudo ifconfig p0 {}/16 up".format(self.vxlan(ip)))
             time.sleep(1)
             #Add tunnel endpoints
             for j, other in enumerate(others):
