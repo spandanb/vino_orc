@@ -1,0 +1,137 @@
+heat_template_version: 2014-10-16
+
+description: Alternative Wordpress template.
+
+parameters:
+  key_name:
+    type: string
+    default: key_spandan
+  flavor:
+    type: string
+    default: m1.small
+  image:
+    type: string
+    #default: Ubuntu64-1404-OVS 
+    default: Ubuntu64-3-OVS 
+
+resources:
+  FirewallServer:
+    type: OS::Nova::Server
+    properties:
+      flavor:
+        get_param: flavor
+      image:
+        get_param: image
+      key_name:
+        get_param: key_name
+      name: firewall 
+      user_data: |
+        #!/usr/bin/env bash
+        echo "hello world" 
+
+  GatewayServer:
+    type: OS::Nova::Server
+    properties:
+      flavor:
+        get_param: flavor
+      image:
+        get_param: image
+      key_name:
+        get_param: key_name
+      name: gateway
+      user_data: |
+        #!/usr/bin/env bash
+        echo "hello world" 
+
+  DatabaseServer:
+    type: OS::Nova::Server
+    properties:
+      flavor:
+        get_param: flavor
+      image:
+        get_param: image
+      key_name:
+        get_param: key_name
+      name: database
+      user_data: |
+        #!/usr/bin/env bash
+        echo "hello world" 
+
+  WordPressServer:
+    type: OS::Nova::Server
+    properties:
+      flavor:
+        get_param: flavor
+      image:
+        wp2-ovs-1404
+      key_name:
+        get_param: key_name
+      name: wordpress 
+      user_data: |
+        #!/usr/bin/env bash
+        echo "hello world" 
+    
+  MasterServer:
+    type: OS::Nova::Server
+    properties:
+      flavor:
+        m1.medium3
+      image:
+        master-sdi.0.5
+      key_name:
+        get_param: key_name
+      name: master 
+      user_data: 
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            apt-get update
+            su - ubuntu -c "git clone https://github.com/spandanb/vino_orc.git /home/ubuntu/vino_orc"
+            python /home/ubuntu/setup.py install
+            su - ubuntu -c "touch /home/ubuntu/vino_orc/params.py"
+            su - ubuntu -c "echo \"username='ubuntu'\" >> /home/ubuntu/vino_orc/params.py"
+            su - ubuntu -c "echo \"password='savi'\" >> /home/ubuntu/vino_orc/params.py"
+            su - ubuntu -c "echo \"host1='host1_ip'\" >> /home/ubuntu/vino_orc/params.py"
+            su - ubuntu -c "echo \"host2='host2_ip'\" >> /home/ubuntu/vino_orc/params.py"
+            su - ubuntu -c "echo \"host3='host3_ip'\" >> /home/ubuntu/vino_orc/params.py"
+            su - ubuntu -c "echo \"host4='host4_ip'\" >> /home/ubuntu/vino_orc/params.py"
+
+            touch /home/ubuntu/.screenrc
+            cat << EOF > /home/ubuntu/.screenrc
+            #General
+            startup_message off
+            hardstatus alwayslastline
+            hardstatus string '%{gk}[%{wk}%?%-Lw%?%{=b kR}(%{W}%n*%f %t%?(%u)%?%{=b kR})%{= w}%?%+Lw%?%? %{g}][%{d}%l%{g}][ %{= w}%Y/%m/%d %0C:%s%a%{g} ]%{W}'
+            #Run ryu
+            screen -t vmaster
+            select 0
+            stuff "cd /home/ubuntu/vino_orc^M"
+            stuff "python vinod.py^M"
+            EOF
+            
+            chmod 666 /home/ubuntu/.screenrc
+            su - ubuntu -c "wget 'https://raw.githubusercontent.com/spandanb/utils/master/.vimrc' -P /home/ubuntu"
+            su - ubuntu -c "screen -AdmS master" 
+          params:
+            host1_ip: { get_attr: [ FirewallServer, first_address ] }
+            host2_ip: { get_attr: [ GatewayServer, first_address ] }
+            host3_ip: { get_attr: [ DatabaseServer, first_address ] }
+            host4_ip: { get_attr: [ WordPressServer, first_address ] }
+
+
+outputs:
+  firewall_ip:
+    description: The IP address of the Firewall.
+    value: { get_attr: [ FirewallServer, first_address ] }
+  gateway_ip:
+    description: The IP address of the Gateway.
+    value: { get_attr: [ GatewayServer, first_address ] }
+  database_ip:
+    description: The IP address of the Database.
+    value: { get_attr: [ DatabaseServer, first_address ] }
+  wordpress_ip:
+    description: The IP address of the WordPress.
+    value: { get_attr: [ WordPressServer, first_address ] }
+  master_ip:
+    description: The IP address of the Master.
+    value: { get_attr: [ MasterServer, first_address ] }
