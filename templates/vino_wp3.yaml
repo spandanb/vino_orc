@@ -77,6 +77,25 @@ resources:
         str_replace:
           template: |
             #!/usr/bin/env bash
+            apt-get install haproxy -y
+            touch /home/ubuntu/haproxy.cfg
+
+            cat << EOF > /home/ubuntu/haproxy.cfg
+            listen l1 0.0.0.0:80
+                mode tcp
+                clitimeout 180000
+                srvtimeout 180000
+                contimeout 4000
+                server srv1 wp_ip:80
+             
+            global
+                daemon
+                maxconn 256
+            EOF
+            chmod 0666 /home/ubuntu/haproxy.cfg
+
+            haproxy -f /home/ubuntu/haproxy.cfg 
+            
             echo "wp_ip wordpress" >> /etc/hosts
           params:
             wp_ip: { get_attr: [ WordPressServer, first_address ] }
