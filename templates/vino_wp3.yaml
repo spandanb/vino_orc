@@ -1,6 +1,8 @@
 heat_template_version: 2014-10-16
 
 description: Alternative Wordpress template.
+            Usage:
+                heat stack-create -f vino_wp3.yaml wordpress
 
 parameters:
   key_name:
