@@ -169,7 +169,7 @@ resources:
   WordPressServer:
     type: OS::Nova::Server
     properties:
-      image: Ubuntu64-wp-mysql
+      image: Ubuntu64-wp-OVS
       flavor: { get_param: flavor }
       key_name: { get_param: key_name }
       networks:

@@ -31,15 +31,16 @@ class Vinod(object):
     def __init__(self):
         self.ssh = pr.SSHClient()
         self.ssh.set_missing_host_key_policy(pr.AutoAddPolicy())
-        self.creatIPMap()
+        self.createIPMap()
 
     def createIPMap(self):
         "Creates map of host names to hostIP addresses"
         getval = functools.partial(getattr, params)
         hostNames = filter(lambda prop: "host" in prop, dir(params))
-        self.IPMap = {}
+        self.IPMap = {} #Map of names to IP addresses
         for name in hostNames:
-            self.IPMap[name.split("_")[1]] = getval(name)
+            key = name.split("_")[1] #host_firewall -> firewall
+            self.IPMap[key] = getval(name)
         self.IPList = self.IPMap.values() #List of IP addresses
 
     def vxlanIP(self, ip):
@@ -88,24 +89,24 @@ class Vinod(object):
             
             self.ssh.close()
     
-    def injectDependency():
+    def injectDependency(self):
         """
         Inject dependency in /etc/hosts file
         There are two dependencies:
             1)GW -> WP
             2)WP -> DB
         """
-        self.ssh.connect(self.IPMap("gateway"), username=params.username, password=params.password)
-        self.ssh.exec_command('sudo echo "wordpress {}" >> /etc/hosts'.format(sefl.vxlanIP(self.IPMap("wordpress")))) 
+        self.ssh.connect(self.IPMap["gateway"], username=params.username, password=params.password)
+        self.ssh.exec_command('sudo echo "wordpress {}" | sudo tee -a /etc/hosts'.format(self.vxlanIP(self.IPMap["wordpress"]))) 
         self.ssh.close()
 
-        self.ssh.connect(self.IPMap("wordpress"), username=params.username, password=params.password)
-        self.ssh.exec_command('sudo echo "database {}" >> /etc/hosts'.format(self.vxlanIP(self.IPMap("database")))) 
+        self.ssh.connect(self.IPMap["wordpress"], username=params.username, password=params.password)
+        self.ssh.exec_command('sudo echo "database {}" | sudo tee -a /etc/hosts'.format(self.vxlanIP(self.IPMap["database"]))) 
         self.ssh.close()
 
-    def runHAProxy():
-        self.ssh.connect(self.IPMap("gateway"), username=params.username, password=params.password)
-        cmd = "sed -i '6i6 server srv1 {}:80' /home/ubuntu/haproxy.cfg".format(self.vxlanIP(self.IPMap('wordpress')))
+    def runHAProxy(self):
+        self.ssh.connect(self.IPMap["gateway"], username=params.username, password=params.password)
+        cmd = "sed -i '6i server srv1 {}:80' /home/ubuntu/haproxy.cfg".format(self.vxlanIP(self.IPMap['wordpress']))
         self.ssh.exec_command(cmd) 
         time.sleep(1)
         self.ssh.exec_command("haproxy -f /home/ubuntu/haproxy.cfg")
