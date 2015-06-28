@@ -29,20 +29,6 @@ resources:
         #!/usr/bin/env bash
         echo "hello world" 
 
-  GatewayServer:
-    type: OS::Nova::Server
-    properties:
-      flavor:
-        get_param: flavor
-      image:
-        get_param: image
-      key_name:
-        get_param: key_name
-      name: gateway
-      user_data: |
-        #!/usr/bin/env bash
-        echo "hello world" 
-
   DatabaseServer:
     type: OS::Nova::Server
     properties:
@@ -67,10 +53,32 @@ resources:
       key_name:
         get_param: key_name
       name: wordpress 
-      user_data: |
-        #!/usr/bin/env bash
-        echo "hello world" 
+      user_data: 
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            echo "dp_ip database" >> /etc/hosts
+          params:
+            db_ip: { get_attr: [ DatabaseServer, first_address ] }
     
+  GatewayServer:
+    type: OS::Nova::Server
+    properties:
+      flavor:
+        get_param: flavor
+      image:
+        get_param: image
+      key_name:
+        get_param: key_name
+      name: gateway
+      user_data: 
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            echo "wp_ip wordpress" >> /etc/hosts
+          params:
+            wp_ip: { get_attr: [ WordPressServer, first_address ] }
+
   MasterServer:
     type: OS::Nova::Server
     properties:
@@ -101,7 +109,7 @@ resources:
             startup_message off
             hardstatus alwayslastline
             hardstatus string '%{gk}[%{wk}%?%-Lw%?%{=b kR}(%{W}%n*%f %t%?(%u)%?%{=b kR})%{= w}%?%+Lw%?%? %{g}][%{d}%l%{g}][ %{= w}%Y/%m/%d %0C:%s%a%{g} ]%{W}'
-            #Run ryu
+            #Run Vino Master 
             screen -t vmaster
             select 0
             stuff "cd /home/ubuntu/vino_orc^M"
