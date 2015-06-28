@@ -87,7 +87,6 @@ resources:
             #!/usr/bin/env bash
             apt-get update
             su - ubuntu -c "git clone https://github.com/spandanb/vino_orc.git /home/ubuntu/vino_orc"
-            python /home/ubuntu/setup.py install
             su - ubuntu -c "touch /home/ubuntu/vino_orc/params.py"
             su - ubuntu -c "echo \"username='ubuntu'\" >> /home/ubuntu/vino_orc/params.py"
             su - ubuntu -c "echo \"password='savi'\" >> /home/ubuntu/vino_orc/params.py"
