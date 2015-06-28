@@ -31,15 +31,18 @@ class Vinod(object):
     def __init__(self):
         self.ssh = pr.SSHClient()
         self.ssh.set_missing_host_key_policy(pr.AutoAddPolicy())
-        self.getIPs()
+        self.creatIPMap()
 
-    def getIPs(self):    
-        """Get all the host IP addresses"""
+    def createIPMap(self):
+        "Creates map of host names to hostIP addresses"
         getval = functools.partial(getattr, params)
-        self.IPList = map(getval, filter(lambda prop: "host" in prop, dir(params)))
-        #self.IPList = ["10.12.1.68", "10.12.1.67"]
+        hostNames = filter(lambda prop: "host" in prop, dir(params))
+        self.IPMap = {}
+        for name in hostNames:
+            self.IPMap[name.split("_")[1]] = getval(name)
+        self.IPList = self.IPMap.values() #List of IP addresses
 
-    def vxlan(self, ip):
+    def vxlanIP(self, ip):
         "returns a vxlan ip address"
         return "192.168." + ".".join(ip.split(".")[2:])
 
@@ -75,7 +78,7 @@ class Vinod(object):
             time.sleep(1)
             self.ssh.exec_command("sudo ovs-vsctl set interface p0 mac={}".format(stdin))
             time.sleep(1)
-            self.ssh.exec_command("sudo ifconfig p0 {}/16 up".format(self.vxlan(ip)))
+            self.ssh.exec_command("sudo ifconfig p0 {}/16 up".format(self.vxlanIP(ip)))
             time.sleep(1)
             #Add tunnel endpoints
             for j, other in enumerate(others):
@@ -84,6 +87,32 @@ class Vinod(object):
                 time.sleep(1)
             
             self.ssh.close()
+    
+    def injectDependency():
+        """
+        Inject dependency in /etc/hosts file
+        There are two dependencies:
+            1)GW -> WP
+            2)WP -> DB
+        """
+        self.ssh.connect(self.IPMap("gateway"), username=params.username, password=params.password)
+        self.ssh.exec_command('sudo echo "wordpress {}" >> /etc/hosts'.format(sefl.vxlanIP(self.IPMap("wordpress")))) 
+        self.ssh.close()
 
-vinod = Vinod()
-vinod.mesh()
+        self.ssh.connect(self.IPMap("wordpress"), username=params.username, password=params.password)
+        self.ssh.exec_command('sudo echo "database {}" >> /etc/hosts'.format(self.vxlanIP(self.IPMap("database")))) 
+        self.ssh.close()
+
+    def runHAProxy():
+        self.ssh.connect(self.IPMap("gateway"), username=params.username, password=params.password)
+        cmd = "sed -i '6i6 server srv1 {}:80' /home/ubuntu/haproxy.cfg".format(self.vxlanIP(self.IPMap('wordpress')))
+        self.ssh.exec_command(cmd) 
+        time.sleep(1)
+        self.ssh.exec_command("haproxy -f /home/ubuntu/haproxy.cfg")
+        self.ssh.close()
+
+if __name__ == "__main__":
+    vinod = Vinod()
+    vinod.mesh()
+    vinod.injectDependency()
+    vinod.runHAProxy()
