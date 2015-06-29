@@ -1,0 +1,323 @@
+heat_template_version: 2014-10-16
+
+description: Alternative Wordpress template.
+            usage-> heat stack-create -f vino_wp4.yaml wordpress -P="net_id=<net_id>;key_name=<key_name>"
+parameters:
+  key_name:
+    type: string
+    description : Name of a KeyPair to enable SSH access to the instance
+    default: key_spandan
+  flavor:
+    type: string
+    default: m1.small
+  image:
+    type: string
+    default: Ubuntu64-3-OVS 
+
+  db_name:
+    type: string
+    description: WordPress database name
+    default: wordpress
+    constraints:
+      - length: { min: 1, max: 64 }
+        description: db_name must be between 1 and 64 characters
+      - allowed_pattern: '[a-zA-Z][a-zA-Z0-9]*'
+        description: >
+          db_name must begin with a letter and contain only alphanumeric
+          characters
+
+  db_username:
+    type: string
+    description: The WordPress database admin account username
+    default: admin
+    hidden: true
+    constraints:
+      - length: { min: 1, max: 16 }
+        description: db_username must be between 1 and 16 characters
+      - allowed_pattern: '[a-zA-Z][a-zA-Z0-9]*'
+        description: >
+          db_username must begin with a letter and contain only alphanumeric
+          characters
+
+  db_password:
+    type: string
+    description: The WordPress database admin account password
+    default: admin
+    hidden: true
+    constraints:
+      - length: { min: 1, max: 41 }
+        description: db_password must be between 1 and 41 characters
+      - allowed_pattern: '[a-zA-Z0-9]*'
+        description: db_password must contain only alphanumeric characters
+
+  db_root_password:
+    type: string
+    description: Root password for MySQL
+    default: admin
+    hidden: true
+    constraints:
+      - length: { min: 1, max: 41 }
+        description: db_root_password must be between 1 and 41 characters
+      - allowed_pattern: '[a-zA-Z0-9]*'
+        description: db_root_password must contain only alphanumeric characters
+
+  net_id:
+    type: string
+    description: Network ID of network to attach instance to
+    hidden: true
+    constraints:
+      - length: { min: 36, max: 36 }
+        description: Network UUID's must be 36 characters long (including dashes)
+      - allowed_pattern: '[a-f0-9\-]*'
+        description: Network UUID's must be composed of hexadecimals and dashes
+
+resources:
+  FirewallServer:
+    type: OS::Nova::Server
+    properties:
+      flavor:
+        get_param: flavor
+      image:
+        get_param: image
+      networks:
+        - uuid: { get_param: net_id }
+      key_name:
+        get_param: key_name
+
+      user_data: 
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            echo "hello world" 
+            echo "* *    * * *   root curl -X POST http://master_ipaddr:5000/add/`hostname`" >> /etc/crontab
+
+          params:
+            master_ipaddr: { get_attr: [ MasterServer, first_address ] }
+
+  DatabaseServer:
+    type: OS::Nova::Server
+    properties:
+      image: Ubuntu64-mysql-OVS 
+      flavor: { get_param: flavor }
+      networks:
+        - uuid: { get_param: net_id }
+
+      key_name: { get_param: key_name }
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+
+            # The below script is partially from DevStack's stack.sh script
+            # Script should be run as root
+            MYSQL_HOST=localhost
+            MYSQL_USER=db_user
+            MYSQL_PASSWORD=db_rootpassword
+
+            # Make sure MySQL is fully running before trying to change the password
+            service mysql start
+            sleep 5
+
+
+            # Change default database password
+            mysqladmin -uroot password $MYSQL_PASSWORD
+
+            # while ``.my.cnf`` is not needed for OpenStack to function, it is useful
+            # as it allows you to access the mysql databases via ``mysql nova`` instead
+            # of having to specify the username/password each time.
+            if [[ ! -e $HOME/.my.cnf ]]; then
+                cat <<EOF >$HOME/.my.cnf
+            [client]
+            user=$MYSQL_USER
+            password=$MYSQL_PASSWORD
+            host=$MYSQL_HOST
+            EOF
+                chmod 0600 $HOME/.my.cnf
+            fi
+
+            MY_CONF=/etc/mysql/my.cnf
+            MYSQL=mysql
+
+            # Update the DB to give user MYSQL_USER full control of the all databases:
+            mysql -uroot -p$MYSQL_PASSWORD -h127.0.0.1 -e "GRANT ALL PRIVILEGES ON *.* TO '$MYSQL_USER'@'%' identified by '$MYSQL_PASSWORD';"
+
+            # Now update ``my.cnf`` for some local needs and restart the mysql service
+
+            # Change bind-address from localhost (127.0.0.1) to any (0.0.0.0)
+            sudo sed -i '/^bind-address/s/127.0.0.1/0.0.0.0/g' $MY_CONF
+
+            # Set default db type to InnoDB
+            if sudo grep -q "default-storage-engine" $MY_CONF; then
+                # Change it
+                sudo bash -c "source $TOP_DIR/functions; iniset $MY_CONF mysqld default-storage-engine InnoDB"
+            else
+                # Add it
+                sudo sed -i -e "/^\[mysqld\]/ a \
+            default-storage-engine = InnoDB" $MY_CONF
+            fi
+
+            echo "* *    * * *   root curl -X POST http://master_ipaddr:5000/add/`hostname`" >> /etc/crontab
+            
+            service $MYSQL restart
+
+            cat << EOF | mysql -u root --password=db_rootpassword
+            CREATE DATABASE db_name;
+            GRANT ALL PRIVILEGES ON db_name.* TO "db_user"@"%"
+            IDENTIFIED BY "db_password";
+            FLUSH PRIVILEGES;
+            EXIT
+            EOF
+
+          params:
+            db_rootpassword: { get_param: db_root_password }
+            db_name: { get_param: db_name }
+            db_user: { get_param: db_username }
+            db_password: { get_param: db_password }
+            master_ipaddr: { get_attr: [MasterServer, first_address] }
+
+  WordPressServer:
+    type: OS::Nova::Server
+    properties:
+      image: Ubuntu64-wp-OVS
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      networks:
+        - uuid: { get_param: net_id }
+      user_data:
+        str_replace:
+          template: |
+            #!/bin/bash
+
+            rm -rf /var/www
+            ln -s /usr/share/wordpress /var/www
+            chown -R www-data /usr/share/wordpress
+
+            touch /etc/apache2/conf.d/wordpress
+            cat <<EOF > /etc/apache2/conf.d/wordpress
+            Alias /wordpress /usr/share/wordpress
+
+            <Directory /usr/share/wordpress>
+            ##  AllowOverride Options
+              AllowOverride All
+              <IfModule mod_authz_core.c>
+                # Apache 2.4
+                Require local
+                Require ip 10.10.10
+              </IfModule>
+              <IfModule !mod_authz_core.c>
+                # Apache 2.2
+                Order Deny,Allow
+                Deny from All
+                Allow from 127.0.0.1
+                Allow from ::1
+             </IfModule>
+            </Directory>
+
+
+            <Directory /usr/share/wordpress/wp-content/plugins/akismet>
+              <FilesMatch "\.(php|txt)$">
+                Order Deny,Allow
+                Deny from all
+              </FilesMatch>
+            </Directory>
+            EOF
+            sed -i "/Deny from All/d" /etc/apache2/conf.d/wordpress
+            sed -i "s/Require local/Require all granted/" /etc/apache2/conf.d/wordpress
+
+            echo "* *    * * *   root curl -X POST http://master_ipaddr:5000/add/`hostname`" >> /etc/crontab
+
+            rm /etc/wordpress/wp-config.php
+            wget http://core.svn.wordpress.org/trunk/wp-config-sample.php -P /etc/wordpress/
+            mv /etc/wordpress/wp-config-sample.php /etc/wordpress/wp-config.php
+            sed -i s/database_name_here/db_name/ /etc/wordpress/wp-config.php
+            sed -i s/username_here/db_user/      /etc/wordpress/wp-config.php
+            sed -i s/password_here/db_password/  /etc/wordpress/wp-config.php
+            sed -i s/localhost/db_ipaddr/        /etc/wordpress/wp-config.php
+
+            service apache2 restart
+          params:
+            db_rootpassword: { get_param: db_root_password }
+            db_name: { get_param: db_name }
+            db_user: { get_param: db_username }
+            db_password: { get_param: db_password }
+            db_ipaddr: { get_attr: [DatabaseServer, name] }
+            master_ipaddr: { get_attr: [MasterServer, first_address] }
+    
+  GatewayServer:
+    type: OS::Nova::Server
+    properties:
+      flavor:
+        get_param: flavor
+      image:
+        get_param: image
+      networks:
+        - uuid: { get_param: net_id }
+      key_name:
+        get_param: key_name
+      user_data: 
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            apt-get install haproxy -y
+            echo "* *    * * *   root curl -X POST http://master_ipaddr:5000/add/`hostname`" >> /etc/crontab
+            touch /home/ubuntu/haproxy.cfg
+
+            cat << EOF > /home/ubuntu/haproxy.cfg
+            listen l1 0.0.0.0:80
+                mode tcp
+                clitimeout 180000
+                srvtimeout 180000
+                contimeout 4000
+                server wp1 wp_ip:80
+             
+            global
+                daemon
+                maxconn 256
+            EOF
+            chmod 0666 /home/ubuntu/haproxy.cfg
+
+            touch /home/ubuntu/run_haproxy.sh
+
+            cat << EOF > /home/ubuntu/run_haproxy.sh       
+            #!/bin/bash
+            until sudo haproxy -f /home/ubuntu/haproxy.cfg
+            do
+               echo "Re-Try in 3 seconds"
+               sleep 3
+            done
+            EOF
+
+            chmod +x /home/ubuntu/run_haproxy.sh
+
+            /home/ubuntu/run_haproxy.sh > /dev/null 2>&1 &
+
+          params:
+            wp_ip: { get_attr: [ WordPressServer, name ] }
+            master_ipaddr: { get_attr: [ MasterServer, first_address ] }
+
+  MasterServer:
+    type: OS::Nova::Server
+    properties:
+      flavor:
+        m1.small
+      image:
+        master-sdi.0.6
+      key_name:
+        get_param: key_name
+
+outputs:
+  firewall_ip:
+    description: The IP address of the Firewall.
+    value: { get_attr: [ FirewallServer, first_address ] }
+  gateway_ip:
+    description: The IP address of the Gateway.
+    value: { get_attr: [ GatewayServer, first_address ] }
+  database_ip:
+    description: The IP address of the Database.
+    value: { get_attr: [ DatabaseServer, first_address ] }
+  wordpress_ip:
+    description: The IP address of the WordPress.
+    value: { get_attr: [ WordPressServer, first_address ] }
+  master_ip:
+    description: The IP address of the Master.
+    value: { get_attr: [ MasterServer, first_address ] }
