@@ -98,7 +98,7 @@ resources:
       key_name:
         get_param: key_name
       security_groups: 
-        [default]
+         - default
       user_data: 
         str_replace:
           template: |
@@ -141,7 +141,7 @@ resources:
       networks:
         - uuid: { get_param: net_id }
       security_groups: 
-        [default]
+        - default
       key_name: { get_param: key_name }
       user_data:
         str_replace:
@@ -222,7 +222,7 @@ resources:
       flavor: { get_param: flavor }
       key_name: { get_param: key_name }
       security_groups: 
-        [default]
+        - default
       networks:
         - uuid: { get_param: net_id }
       user_data:
@@ -296,6 +296,7 @@ resources:
         - uuid: { get_param: net_id }
       security_groups:
         - {get_resource: security_group}
+        - default
       key_name:
         get_param: key_name
       user_data: 
@@ -343,11 +344,13 @@ resources:
     type: OS::Nova::Server
     properties:
       security_groups: 
-        [default]
+        - default
       flavor:
         m1.small
       image:
         master-sdi.0.6
+      networks:
+        - uuid: { get_param: net_id }
       key_name:
         get_param: key_name
 
