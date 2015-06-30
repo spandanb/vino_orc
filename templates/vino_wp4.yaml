@@ -72,6 +72,20 @@ parameters:
         description: Network UUID's must be composed of hexadecimals and dashes
 
 resources:
+  security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: fe_sec_group
+      description: Ping, SSH, and Http
+      rules:
+      - protocol: icmp
+      - protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+      - protocol: tcp
+        port_range_min: 80
+        port_range_max: 80
+
   FirewallServer:
     type: OS::Nova::Server
     properties:
@@ -83,7 +97,8 @@ resources:
         - uuid: { get_param: net_id }
       key_name:
         get_param: key_name
-
+      security_groups: 
+        [default]
       user_data: 
         str_replace:
           template: |
@@ -125,7 +140,8 @@ resources:
       flavor: { get_param: flavor }
       networks:
         - uuid: { get_param: net_id }
-
+      security_groups: 
+        [default]
       key_name: { get_param: key_name }
       user_data:
         str_replace:
@@ -205,6 +221,8 @@ resources:
       image: Ubuntu64-wp-OVS
       flavor: { get_param: flavor }
       key_name: { get_param: key_name }
+      security_groups: 
+        [default]
       networks:
         - uuid: { get_param: net_id }
       user_data:
@@ -276,6 +294,8 @@ resources:
         get_param: image
       networks:
         - uuid: { get_param: net_id }
+      security_groups:
+        - {get_resource: security_group}
       key_name:
         get_param: key_name
       user_data: 
@@ -322,6 +342,8 @@ resources:
   MasterServer:
     type: OS::Nova::Server
     properties:
+      security_groups: 
+        [default]
       flavor:
         m1.small
       image:

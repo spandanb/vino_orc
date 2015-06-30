@@ -80,6 +80,20 @@ parameters:
 
 
 resources:
+  security_group:
+    type: OS::Neutron::SecurityGroup
+    properties:
+      name: fe_sec_group
+      description: Ping, SSH, and Http
+      rules:
+      - protocol: icmp
+      - protocol: tcp
+        port_range_min: 22
+        port_range_max: 22
+      - protocol: tcp
+        port_range_min: 80
+        port_range_max: 80
+
   DatabaseServer:
     type: OS::Nova::Server
     properties:
@@ -87,7 +101,8 @@ resources:
       flavor: { get_param: instance_type }
       networks:
         - uuid: { get_param: net_id }
-
+      security_groups:
+        [default]
       key_name: { get_param: key_name }
       user_data:
         str_replace:
@@ -167,6 +182,8 @@ resources:
       key_name: { get_param: key_name }
       networks:
         - uuid: { get_param: net_id }
+      security_groups:
+        - {get_resource: security_group}
       user_data:
         str_replace:
           template: |
@@ -232,6 +249,8 @@ resources:
       key_name: { get_param: key_name }
       networks:
         - uuid: { get_param: net_id }
+      security_groups:
+        [default]
       user_data:
         str_replace:
           template: |
