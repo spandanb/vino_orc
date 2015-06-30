@@ -58,13 +58,19 @@ def new_slave_added(new_slave_ip, slave_name):
         #run vxlan add on new slave toward all servers
         #run vxlan add for new slave on old slaves
 
+        slave_info = servers[new_slave_ip]
+        slave_role = slave_info.get('role', None)
         ssh=SSHClient()
         ssh.set_missing_host_key_policy(AutoAddPolicy())
-        ssh.connect(new_slave_ip, username='ubuntu', password='*******')
+        ssh.connect(new_slave_ip, username='ubuntu', password='savi')
         scp = SCPClient(ssh.get_transport())
         print "putting setup files"
         scp.put('setup_br.sh', '~/setup_br.sh')
         scp.put('add_vxlan.sh', '~/add_vxlan.sh')
+        if slave_role != 'gw': 
+           scp.put('setup_gw_routes.sh', '~/setup_gw_routes.sh')
+        if slave_role == 'gw':
+           scp.put('setup_iptables.sh', '~/setup_iptables.sh')
         scp.close()
         print "setting up bridge and intenal ports"
         stdin, stdout, stderr = ssh.exec_command('~/setup_br.sh br-int tcp:%s:6633 %s' %(my_ip, vxlan_ip(new_slave_ip)))
@@ -76,27 +82,44 @@ def new_slave_added(new_slave_ip, slave_name):
         dpid=rets[1].strip('\n')
         print "returned %s" %p1_mac
         register_port_in_janus(dpid, vxlan_ip(new_slave_ip), p1_mac)
-        for s,name in servers.iteritems():
+        for s,d in servers.iteritems():
             if s == new_slave_ip:
                   continue
+            name=d['name']
             print "setting up vxlan %s -> %s" %(new_slave_ip, s)
             print '~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(s, s, vxlan_ip(s), name)
             ssh.exec_command('~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(s, s, vxlan_ip(s), name))
             time.sleep(1)
+            role = d.get('role', None)
+            if role == 'gw' and slave_role != 'gw':
+                  time.sleep(1)
+                  print '~/setup_gw_routes.sh %s %s' %(vxlan_ip(new_slave_ip), vxlan_ip(s))
+                  ssh.exec_command('~/setup_gw_routes.sh %s %s' %(vxlan_ip(new_slave_ip), vxlan_ip(s)))
+                  time.sleep(1)
+            if slave_role == 'gw' and role == 'srv':
+                  time.sleep(1)
+                  print '~/setup_iptables.sh %s %s %s' %(new_slave_ip, vxlan_ip(s), d['port'])
+                  ssh.exec_command('~/setup_iptables.sh %s %s %s' %(new_slave_ip, vxlan_ip(s), d['port']))
+                  time.sleep(1)
+
         ssh.close()
         with lock:
-            for s in servers: 
-                if s == new_slave_ip:
-                    continue
-                try:
-                    ssh.connect(s, username='ubuntu', password='*******')
-                    print "setting up vxlan %s -> %s" %(s, new_slave_ip)
-                    print '~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(new_slave_ip, new_slave_ip, vxlan_ip(new_slave_ip), slave_name)
-                    ssh.exec_command('~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(new_slave_ip, new_slave_ip, vxlan_ip(new_slave_ip), slave_name))
-                    ssh.close()
-                except:
-                    print "exception in adding vxlans on otehr servers"
-                    pass
+	    for s,d in servers.iteritems(): 
+	        if s == new_slave_ip:
+		    continue
+                role = d.get('role', None)
+	        ssh.connect(s, username='ubuntu', password='savi')
+	        print "setting up vxlan %s -> %s" %(s, new_slave_ip)
+	        print '~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(new_slave_ip, new_slave_ip, vxlan_ip(new_slave_ip), slave_name)
+	        ssh.exec_command('~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(new_slave_ip, new_slave_ip, vxlan_ip(new_slave_ip), slave_name))
+                if slave_role == 'gw' and role != 'gw':
+                    print '~/setup_gw_routes.sh %s %s' %(vxlan_ip(s), vxlan_ip(new_slave_ip))
+                    ssh.exec_command('~/setup_gw_routes.sh %s %s' %(vxlan_ip(s), vxlan_ip(new_slave_ip)))
+                if slave_role == 'srv' and role == 'gw':
+                    print '~/setup_iptables.sh %s %s %s' %(s, vxlan_ip_subnet(new_slave_ip), slave_info['port'])
+                    ssh.exec_command('~/setup_iptables.sh %s %s %s' %(s, vxlan_ip_subnet(new_slave_ip), slave_info['port']))
+	        ssh.close()
+            
         print "new_slave_added successfully"
 
 def read_servers_json_file():
@@ -116,16 +139,27 @@ def write_json_servers_file():
         print "servers write %s" %servers
 
 @app.route('/add/<slave_name>', methods=['POST'])
-def hello_world(slave_name):
+@app.route('/add/<slave_name>/<role>', methods=['POST'])
+@app.route('/add/<slave_name>/<role>/<proto>/<port>', methods=['POST'])
+def hello_world(slave_name, role = None, proto = None, port = None):
         global servers
+        print "received params are %s, %s, %s, %s" %(slave_name,role,proto,port)
 	worker_ip = request.remote_addr
 	if worker_ip not in servers:
 		print "new server %s" %worker_ip
+                d={}
+                d['name'] = slave_name
+                if role is not None:
+                   d['role'] = role
+                if proto is not None:
+                   d['proto'] = proto
+                if port is not None:
+                   d['port'] = port
+		servers[worker_ip]=d
                 new_slave_added(worker_ip, slave_name)
-		servers[worker_ip]=slave_name
 		write_json_servers_file()
 		#update.update_haproxy(lb_port)
-	servers[worker_ip]=slave_name
+	#servers[worker_ip]=slave_name
 	return 'Welcome To Pool %s, (i.e., %s)!' %(worker_ip, slave_name)
 
 def timer_thread_func():
