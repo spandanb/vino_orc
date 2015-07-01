@@ -97,13 +97,12 @@ def new_slave_added(new_slave_ip, slave_name):
                   ssh.exec_command('~/setup_gw_routes.sh %s %s' %(vxlan_ip(new_slave_ip), vxlan_ip(s)))
                   time.sleep(1)
             if slave_role == 'gw' and role == 'srv':
-                  time.sleep(1)
                   print '~/setup_iptables.sh %s %s %s' %(new_slave_ip, vxlan_ip(s), d['port'])
                   ssh.exec_command('~/setup_iptables.sh %s %s %s' %(new_slave_ip, vxlan_ip(s), d['port']))
                   time.sleep(1)
 
         ssh.close()
-        with lock:
+        if True:
 	    for s,d in servers.iteritems(): 
 	        if s == new_slave_ip:
 		    continue
@@ -116,8 +115,8 @@ def new_slave_added(new_slave_ip, slave_name):
                     print '~/setup_gw_routes.sh %s %s' %(vxlan_ip(s), vxlan_ip(new_slave_ip))
                     ssh.exec_command('~/setup_gw_routes.sh %s %s' %(vxlan_ip(s), vxlan_ip(new_slave_ip)))
                 if slave_role == 'srv' and role == 'gw':
-                    print '~/setup_iptables.sh %s %s %s' %(s, vxlan_ip_subnet(new_slave_ip), slave_info['port'])
-                    ssh.exec_command('~/setup_iptables.sh %s %s %s' %(s, vxlan_ip_subnet(new_slave_ip), slave_info['port']))
+                    print '~/setup_iptables.sh %s %s %s' %(s, vxlan_ip(new_slave_ip), slave_info['port'])
+                    ssh.exec_command('~/setup_iptables.sh %s %s %s' %(s, vxlan_ip(new_slave_ip), slave_info['port']))
 	        ssh.close()
             
         print "new_slave_added successfully"
@@ -146,18 +145,19 @@ def hello_world(slave_name, role = None, proto = None, port = None):
         print "received params are %s, %s, %s, %s" %(slave_name,role,proto,port)
 	worker_ip = request.remote_addr
 	if worker_ip not in servers:
-		print "new server %s" %worker_ip
-                d={}
-                d['name'] = slave_name
-                if role is not None:
-                   d['role'] = role
-                if proto is not None:
-                   d['proto'] = proto
-                if port is not None:
-                   d['port'] = port
-		servers[worker_ip]=d
-                new_slave_added(worker_ip, slave_name)
-		write_json_servers_file()
+		with lock:
+			print "new server %s" %worker_ip
+			d={}
+			d['name'] = slave_name
+			if role is not None:
+			   d['role'] = role
+			if proto is not None:
+			   d['proto'] = proto
+			if port is not None:
+			   d['port'] = port
+			servers[worker_ip]=d
+			new_slave_added(worker_ip, slave_name)
+			write_json_servers_file()
 		#update.update_haproxy(lb_port)
 	#servers[worker_ip]=slave_name
 	return 'Welcome To Pool %s, (i.e., %s)!' %(worker_ip, slave_name)
