@@ -115,5 +115,5 @@ class Vinod(object):
 if __name__ == "__main__":
     vinod = Vinod()
     vinod.mesh()
-    vinod.injectDependency()
-    vinod.runHAProxy()
+    #vinod.injectDependency()
+    #vinod.runHAProxy()
