@@ -1,25 +1,18 @@
-heat_template_version: 2013-05-23
+heat_template_version: 2014-10-16
 
-description: >
-  An example Heat Orchestration Template (HOT).
-  WordPress is web software you can use to create a beautiful website
-  or blog. This template installs two instances: one running a
-  WordPress deployment and the other using a local MySQL database to
-  store the data.
-
+description: Alternative Wordpress template.
+            usage-> heat stack-create -f vino_wp4.yaml wordpress -P="net_id=<net_id>;key_name=<key_name>"
 parameters:
-
   key_name:
     type: string
     description : Name of a KeyPair to enable SSH access to the instance
-
-  instance_type:
+    default: key_spandan
+  flavor:
     type: string
-    description: Instance type for web and DB servers
     default: m1.small
-    constraints:
-      - allowed_values: [m1.tiny, m1.small, m1.medium, m1.large, m1.xlarge]
-        description: instance_type must be a valid instance type
+  image:
+    type: string
+    default: Ubuntu64-3-OVS 
 
   db_name:
     type: string
@@ -70,14 +63,13 @@ parameters:
 
   net_id:
     type: string
-    description: Network UUID to attach instance to
+    description: Network ID of network to attach instance to
     hidden: true
     constraints:
       - length: { min: 36, max: 36 }
         description: Network UUID's must be 36 characters long (including dashes)
       - allowed_pattern: '[a-f0-9\-]*'
         description: Network UUID's must be composed of hexadecimals and dashes
-
 
 resources:
   security_group:
@@ -94,14 +86,61 @@ resources:
         port_range_min: 80
         port_range_max: 80
 
+  FirewallServer:
+    type: OS::Nova::Server
+    properties:
+      flavor:
+        get_param: flavor
+      image:
+        snort-image.2
+      networks:
+        - uuid: { get_param: net_id }
+      key_name:
+        get_param: key_name
+      security_groups: 
+         - default
+      user_data: 
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            echo "hello world" 
+            echo "* *    * * *   root curl -X POST http://master_ipaddr:5000/add/`hostname`" >> /etc/crontab
+
+            touch /home/ubuntu/snort.conf
+            cat << EOF > /home/ubuntu/snort.conf
+            drop tcp any any -> any any (flags:S; msg:"Possible TCP DoS, reject"; flow:stateless; detection_filter:track by_src, count 10, seconds 2; sid:5000000;)
+            reject tcp any any -> any 80 (content:"page_id=2"; nocase; msg:"accessed forbidden pages!!"; sid:5000001;)
+            reject tcp any any -> any 80 (content:"inject"; nocase; msg:"accessed forbidden pages!!"; sid:5000002;)
+            EOF
+
+            touch /home/ubuntu/run_snort.sh
+
+            mkdir /home/ubuntu/log
+
+            cat << EOF > /home/ubuntu/run_snort.sh
+            #!/bin/bash
+            until sudo snort -D -Q --daq afpacket -i p2:p3 -c /home/ubuntu/snort.conf -l /home/ubuntu/log
+            do
+               echo "Re-Try in 5 seconds"
+               sleep 5
+            done
+            EOF
+
+            chmod +x /home/ubuntu/run_snort.sh
+
+            /home/ubuntu/run_snort.sh > /dev/null 2>&1 &
+
+          params:
+            master_ipaddr: { get_attr: [ MasterServer, first_address ] }
+
   DatabaseServer:
     type: OS::Nova::Server
     properties:
-      image: Ubuntu64-mysql
-      flavor: { get_param: instance_type }
+      image: Ubuntu64-mysql-OVS 
+      flavor: { get_param: flavor }
       networks:
         - uuid: { get_param: net_id }
-      security_groups:
+      security_groups: 
         - default
       key_name: { get_param: key_name }
       user_data:
@@ -157,6 +196,8 @@ resources:
             default-storage-engine = InnoDB" $MY_CONF
             fi
 
+            echo "* *    * * *   root curl -X POST http://master_ipaddr:5000/add/`hostname`" >> /etc/crontab
+            
             service $MYSQL restart
 
             cat << EOF | mysql -u root --password=db_rootpassword
@@ -167,24 +208,23 @@ resources:
             EXIT
             EOF
 
-
           params:
             db_rootpassword: { get_param: db_root_password }
             db_name: { get_param: db_name }
             db_user: { get_param: db_username }
             db_password: { get_param: db_password }
+            master_ipaddr: { get_attr: [MasterServer, first_address] }
 
-  WebServer:
+  WordPressServer:
     type: OS::Nova::Server
     properties:
-      image: Ubuntu64-wp
-      flavor: { get_param: instance_type }
+      image: Ubuntu64-wp-OVS
+      flavor: { get_param: flavor }
       key_name: { get_param: key_name }
+      security_groups: 
+        - default
       networks:
         - uuid: { get_param: net_id }
-      security_groups:
-        - {get_resource: security_group}
-        - default
       user_data:
         str_replace:
           template: |
@@ -226,6 +266,8 @@ resources:
             sed -i "/Deny from All/d" /etc/apache2/conf.d/wordpress
             sed -i "s/Require local/Require all granted/" /etc/apache2/conf.d/wordpress
 
+            echo "* *    * * *   root curl -X POST http://master_ipaddr:5000/add/`hostname`/srv/t/80" >> /etc/crontab
+
             rm /etc/wordpress/wp-config.php
             wget http://core.svn.wordpress.org/trunk/wp-config-sample.php -P /etc/wordpress/
             mv /etc/wordpress/wp-config-sample.php /etc/wordpress/wp-config.php
@@ -240,57 +282,96 @@ resources:
             db_name: { get_param: db_name }
             db_user: { get_param: db_username }
             db_password: { get_param: db_password }
-            db_ipaddr: { get_attr: [DatabaseServer, first_address] }
-
-  Firewall:
+            db_ipaddr: { get_attr: [DatabaseServer, name] }
+            master_ipaddr: { get_attr: [MasterServer, first_address] }
+    
+  GatewayServer:
     type: OS::Nova::Server
     properties:
-      image: snort-image.2
-      flavor: { get_param: instance_type }
-      key_name: { get_param: key_name }
+      flavor:
+        get_param: flavor
+      image:
+        get_param: image
       networks:
         - uuid: { get_param: net_id }
       security_groups:
-        - default
         - {get_resource: security_group}
+        - default
+      key_name:
+        get_param: key_name
+      user_data: 
+        str_replace:
+          template: |
+            #!/usr/bin/env bash
+            apt-get install haproxy -y
+            echo "* *    * * *   root curl -X POST http://master_ipaddr:5000/add/`hostname`/gw" >> /etc/crontab
+            touch /home/ubuntu/haproxy.cfg
+
+            cat << EOF > /home/ubuntu/haproxy.cfg
+            listen l1 0.0.0.0:80
+                mode tcp
+                clitimeout 180000
+                srvtimeout 180000
+                contimeout 4000
+                server wp1 wp_ip:80
+             
+            global
+                daemon
+                maxconn 256
+            EOF
+            chmod 0666 /home/ubuntu/haproxy.cfg
+
+            touch /home/ubuntu/run_haproxy.sh
+
+            cat << EOF > /home/ubuntu/run_haproxy.sh       
+            #!/bin/bash
+            until sudo haproxy -f /home/ubuntu/haproxy.cfg
+            do
+               echo "Re-Try in 3 seconds"
+               sleep 3
+            done
+            EOF
+
+            chmod +x /home/ubuntu/run_haproxy.sh
+
+            #/home/ubuntu/run_haproxy.sh > /dev/null 2>&1 &
+
+          params:
+            wp_ip: { get_attr: [ WordPressServer, name ] }
+            master_ipaddr: { get_attr: [ MasterServer, first_address ] }
+
+  MasterServer:
+    type: OS::Nova::Server
+    properties:
+      security_groups: 
+        - default
+      flavor:
+        m1.small
+      image:
+        master-sdi.0.7
+      networks:
+        - uuid: { get_param: net_id }
+      key_name:
+        get_param: key_name
       user_data: |
-        #!/bin/bash
-
-        echo "hello world"
-
-        touch /home/ubuntu/snort.conf
-        cat << EOF > /home/ubuntu/snort.conf
-        drop tcp any any -> any any (flags:S; msg:"Possible TCP DoS, drop"; flow:stateless; detection_filter:track by_src, count 10, seconds 2; sid:5000000;)
-        reject tcp any any -> any 80 (content:"page_id=2"; nocase; msg:"accessed forbidden pages!!"; sid:5000001;)
-        reject tcp any any -> any 80 (content:"inject"; nocase; msg:"accessed forbidden pages!!"; sid:5000002;)
-        EOF
-
-        touch /home/ubuntu/run_snort.sh
-
-        mkdir /home/ubuntu/log
-
-        cat << EOF > /home/ubuntu/run_snort.sh
-        #!/bin/bash
-        until sudo snort -D -Q --daq afpacket -i p2:p3 -c /home/ubuntu/snort.conf -l /home/ubuntu/log
-        do
-           echo "Re-Try in 5 seconds"
-           sleep 5
-        done
-        EOF
-
-        chmod +x /home/ubuntu/run_snort.sh
-
-        /home/ubuntu/run_snort.sh > /dev/null 2>&1 &
-
-        service openvswitch-switch restart
-        /home/ubuntu/setup_ovs.sh
+        #!/usr/bin/env bash
+        cd /home/ubuntu/vino_orc
+        git pull origin master
+        
 
 outputs:
-  WebsiteURL:
-    description: URL for Wordpress wiki
-    value:
-      str_replace:
-        template: http://host
-        params:
-          host: { get_attr: [WebServer, first_address] }
-
+  firewall_ip:
+    description: The IP address of the Firewall.
+    value: { get_attr: [ FirewallServer, first_address ] }
+  gateway_ip:
+    description: The IP address of the Gateway.
+    value: { get_attr: [ GatewayServer, first_address ] }
+  database_ip:
+    description: The IP address of the Database.
+    value: { get_attr: [ DatabaseServer, first_address ] }
+  wordpress_ip:
+    description: The IP address of the WordPress.
+    value: { get_attr: [ WordPressServer, first_address ] }
+  master_ip:
+    description: The IP address of the Master.
+    value: { get_attr: [ MasterServer, first_address ] }
