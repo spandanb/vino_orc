@@ -252,6 +252,7 @@ resources:
         - uuid: { get_param: net_id }
       security_groups:
         - default
+        - {get_resource: security_group}
       user_data: |
         #!/bin/bash
 
