@@ -206,8 +206,8 @@ def main(argv):
 #				checkport = int(arg)
 #                        except:
 #				pass
-#        print "my IP address: %s" %my_ip
-#        print "my port : %s" %checkport
+        print "my IP address: %s" %my_ip
+        print "my port : %s" %checkport
         my_ip = get_tun_ip()
 
         if my_ip == '':
