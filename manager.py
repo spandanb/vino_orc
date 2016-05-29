@@ -12,7 +12,7 @@ from scp import SCPClient
 import random
 from janus.network.network_driver import JanusNetworkDriver
 import threading
-from get_ext_ip import get_ip
+from get_ip import get_ext_ip 
 
 lock = threading.Lock()
 
