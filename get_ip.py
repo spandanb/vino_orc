@@ -1,5 +1,6 @@
 import subprocess as sp
 import re
+import pdb
 
 def get_ip(interface="eth0"):
     """
@@ -13,5 +14,10 @@ def get_ip(interface="eth0"):
     except sp.CalledProcessError as err:
         return ""
 
+def get_ext_ip(filename="ext_ip"):
+    with open(filename) as fdesc:
+        return fdesc.read().strip()
+    
+
 if __name__ == "__main__":
-    print get_ip()
+    print get_ext_ip()
