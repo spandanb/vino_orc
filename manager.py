@@ -12,7 +12,7 @@ from scp import SCPClient
 import random
 from janus.network.network_driver import JanusNetworkDriver
 import threading
-from get_tun_ip import get_tun_ip
+from get_ip import get_ip
 
 lock = threading.Lock()
 
@@ -208,7 +208,7 @@ def main(argv):
 #				pass
         print "my IP address: %s" %my_ip
         print "my port : %s" %checkport
-        my_ip = get_tun_ip()
+        my_ip = get_ip()
 
         if my_ip == '':
                 print "my ip is not specified!"
