@@ -51,8 +51,8 @@ def mesh(topology_filepath):
     ssh.set_missing_host_key_policy(AutoAddPolicy())
 
     topology = read_topology(topology_filepath)
-    #Filter master node
-    topology = [node for node in topology if not node['is_master']]
+    #Filter out master node
+    topology = [node for node in topology if not node['role'] == 'master']
 
     for node in topology:
         #Initialize
@@ -91,13 +91,13 @@ def mesh(topology_filepath):
         ssh.exec_command('~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(node2["ip"], node2["ip"], vxlan_ip(node2["ip"]), node2["name"]))
         time.sleep(1)
 
-        if node2['is_gateway'] and not node1['is_gateway']:
+        if node2['role'] == 'gateway' and node1['role'] != 'gateway':
             time.sleep(1)
             print '~/setup_gw_routes.sh %s %s' %(vxlan_ip(node1['ip']), vxlan_ip(node2['ip']))
             ssh.exec_command('~/setup_gw_routes.sh %s %s' %(vxlan_ip(node1['ip']), vxlan_ip(node2['ip'])))
             time.sleep(1)
 
-        if node1["is_gateway"] and node2["is_server"]:
+        if node1["role"] == "gateway" and node2["role"] == "server":
             #NB: hardcoding the port
             print '~/setup_iptables.sh %s %s %s' %(node1['ip'], vxlan_ip(node2['ip']), '80')
             ssh.exec_command('~/setup_iptables.sh %s %s %s' %(node1['ip'], vxlan_ip(node2['ip']), '80'))
