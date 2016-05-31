@@ -51,6 +51,8 @@ def mesh(topology_filepath):
     ssh.set_missing_host_key_policy(AutoAddPolicy())
 
     topology = read_topology(topology_filepath)
+    #Filter master node
+    topology = [node for node in topology if not node['is_master']]
 
     for node in topology:
         #Initialize
