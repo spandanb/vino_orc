@@ -4,10 +4,11 @@ Does configuration based on static topology.
 """
 from paramiko import SSHClient, AutoAddPolicy
 from scp import SCPClient
-import random
+import json 
 import argparse
 from janus.network.network_driver import JanusNetworkDriver
 from itertools import permutations 
+import time
 
 ###########################################
 ################ Globals ##################
@@ -44,11 +45,11 @@ def register_port_in_janus(dpid, ip, mac):
            pass
 
 def write_json_servers_file(servers, servers_file='servers.json'):
-	open(servers_file, 'wt').write(json.dumps(servers))
+    open(servers_file, 'wt').write(json.dumps(servers))
     print "servers write %s" %servers
 
 def read_servers_json_file(servers_file='servers.json'):
-	servers = json.loads(open(servers_file).read())
+    servers = json.loads(open(servers_file).read())
     print "servers read %s" %servers
     return servers
 
