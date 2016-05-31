@@ -59,7 +59,7 @@ def mesh(topology_filepath):
         ssh.connect(node["ip"], username='ubuntu')
         scp = SCPClient(ssh.get_transport())
 
-        print "Copying scripts"
+        print "Working on {}".format(node['ip'])
         scp.put('setup_br.sh', '~/setup_br.sh')
         scp.put('add_vxlan.sh', '~/add_vxlan.sh')
         if node["is_gateway"] : 
@@ -94,7 +94,7 @@ def mesh(topology_filepath):
         if node2['is_gateway'] and not node1['is_gateway']:
             time.sleep(1)
             print '~/setup_gw_routes.sh %s %s' %(vxlan_ip(node1['ip']), vxlan_ip(node2['ip']))
-            ssh.exec_command('~/setup_gw_routes.sh %s %s' %(vxlan_ip(node1['ip']), vxlan_ip([node2['ip'])))
+            ssh.exec_command('~/setup_gw_routes.sh %s %s' %(vxlan_ip(node1['ip']), vxlan_ip(node2['ip'])))
             time.sleep(1)
 
         if node1["is_gateway"] and node2["is_server"]:
