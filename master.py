@@ -20,7 +20,8 @@ my_ip=''
 ###########################################
 def vxlan_ip(ip):
         "returns a vxlan ip address"
-        return "192.168." + ".".join(ip.split(".")[2:])
+        #return "192.168." + ".".join(ip.split(".")[2:])
+        return "172.16." + ".".join(ip.split(".")[2:])
 
 def read_topology(filepath):
     """
