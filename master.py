@@ -43,10 +43,19 @@ def register_port_in_janus(dpid, ip, mac):
         except:
            pass
 
+def write_json_servers_file(servers, servers_file='servers.json'):
+	open(servers_file, 'wt').write(json.dumps(servers))
+    print "servers write %s" %servers
+
+def read_servers_json_file(servers_file='servers.json'):
+	servers = json.loads(open(servers_file).read())
+    print "servers read %s" %servers
+    return servers
+
 ###########################################
 #################### Main #################
 ###########################################
-def mesh(topology_filepath): 
+def mesh(topology_filepath, servers): 
     ssh = SSHClient()
     ssh.set_missing_host_key_policy(AutoAddPolicy())
 
@@ -59,10 +68,14 @@ def mesh(topology_filepath):
         ssh.connect(node["ip"], username='ubuntu')
         scp = SCPClient(ssh.get_transport())
 
+        #Update server file    
+        servers[node['ip']] = {'name': node['name']}
+        write_json_servers_file(servers)
+
         print "Working on {}".format(node['ip'])
         scp.put('setup_br.sh', '~/setup_br.sh')
         scp.put('add_vxlan.sh', '~/add_vxlan.sh')
-        if node["is_gateway"] : 
+        if node["role"] == "gateway": 
            scp.put('setup_iptables.sh', '~/setup_iptables.sh')
         else:
            scp.put('setup_gw_routes.sh', '~/setup_gw_routes.sh')
@@ -115,7 +128,8 @@ def parse_args():
     global my_ip
     my_ip = args.ip_address
 
-    mesh(args.topology_file)
+    servers = read_servers_json_file()
+    mesh(args.topology_file, servers)
 
 if __name__ == "__main__":
     parse_args()
