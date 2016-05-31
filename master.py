@@ -73,7 +73,7 @@ def mesh(topology_filepath, servers):
         servers[node['ip']] = {'name': node['name']}
         write_json_servers_file(servers)
 
-        print "Working on {}".format(node['ip'])
+        print "Configuring {}".format(node['ip'])
         scp.put('setup_br.sh', '~/setup_br.sh')
         scp.put('add_vxlan.sh', '~/add_vxlan.sh')
         if node["role"] == "gateway": 
@@ -90,33 +90,30 @@ def mesh(topology_filepath, servers):
 
         p1_mac = rets[0].strip('\n')
         dpid = rets[1].strip('\n')
-        print "returned %s" % p1_mac
+        print "returned %s\n" % p1_mac
         register_port_in_janus(dpid, vxlan_ip(node["ip"]), p1_mac)
         ssh.close()
         
     #Iterate over all possible binary pairings
     #NB: permutation is okay, since each iter only acts on one node in each pair
-    for pair in permutations(topology, 2):
-        ssh.connect(node["ip"], username='ubuntu')
-        node1, node2 = pair
+    for node1, node2 in permutations(topology, 2):
+        ssh.connect(node1["ip"], username='ubuntu')
 
+        print "Configuring {}".format(node1['ip'])
         print "setting up vxlan %s -> %s" %(node1, node2)
-        print '~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(node2['ip'], node2['ip'], vxlan_ip(node2['ip']), node2["name"])
-        stdin, stdout, stderr = ssh.exec_command('~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(node2["ip"], node2["ip"], vxlan_ip(node2["ip"]), node2["name"]))
-        print stdout.readlines()
-        print stderr.readlines()
-        print "\n"
+        print '~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s\n' %(node2['ip'], node2['ip'], vxlan_ip(node2['ip']), node2["name"])
+        ssh.exec_command('~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(node2["ip"], node2["ip"], vxlan_ip(node2["ip"]), node2["name"]))
         time.sleep(1)
 
         if node2['role'] == 'gateway' and node1['role'] != 'gateway':
             time.sleep(1)
-            print '~/setup_gw_routes.sh %s %s' %(vxlan_ip(node1['ip']), vxlan_ip(node2['ip']))
+            print '~/setup_gw_routes.sh %s %s\n' %(vxlan_ip(node1['ip']), vxlan_ip(node2['ip']))
             ssh.exec_command('~/setup_gw_routes.sh %s %s' %(vxlan_ip(node1['ip']), vxlan_ip(node2['ip'])))
             time.sleep(1)
 
         if node1["role"] == "gateway" and node2["role"] == "server":
             #NB: hardcoding the port
-            print '~/setup_iptables.sh %s %s %s' %(node1['ip'], vxlan_ip(node2['ip']), '80')
+            print '~/setup_iptables.sh %s %s %s\n' %(node1['ip'], vxlan_ip(node2['ip']), '80')
             ssh.exec_command('~/setup_iptables.sh %s %s %s' %(node1['ip'], vxlan_ip(node2['ip']), '80'))
             time.sleep(1)
 
