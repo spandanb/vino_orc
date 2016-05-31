@@ -102,7 +102,10 @@ def mesh(topology_filepath, servers):
 
         print "setting up vxlan %s -> %s" %(node1, node2)
         print '~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(node2['ip'], node2['ip'], vxlan_ip(node2['ip']), node2["name"])
-        ssh.exec_command('~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(node2["ip"], node2["ip"], vxlan_ip(node2["ip"]), node2["name"]))
+        stdin, stdout, stderr = ssh.exec_command('~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(node2["ip"], node2["ip"], vxlan_ip(node2["ip"]), node2["name"]))
+        print stdout.readlines()
+        print stderr.readlines()
+        print "\n"
         time.sleep(1)
 
         if node2['role'] == 'gateway' and node1['role'] != 'gateway':
