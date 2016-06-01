@@ -19,7 +19,8 @@ done
 
 sudo ovs-vsctl set bridge $bridge external_ids:next_of_port=10
 
-sudo ifconfig p1 $local_ip up
+sudo ifconfig p1 $local_ip/16 up
+sudo ifconfig p1 mtu 1400 up
 sudo ifconfig p2 up promisc
 sudo ifconfig p3 up promisc
 sudo ovs-vsctl get interface p1 mac | sed s/\"//g
