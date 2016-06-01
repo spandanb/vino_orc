@@ -77,6 +77,7 @@ def mesh(topology_filepath, servers):
         print "Configuring {}".format(node['ip'])
         scp.put('setup_br.sh', '~/setup_br.sh')
         scp.put('add_vxlan.sh', '~/add_vxlan.sh')
+        scp.put('reinit_hosts.sh', '~/reinit_hosts.sh')#Temp fix; remove when image fixed
         if node["role"] == "gateway": 
            scp.put('setup_iptables.sh', '~/setup_iptables.sh')
         else:
@@ -101,6 +102,8 @@ def mesh(topology_filepath, servers):
         ssh.connect(node1["ip"], username='ubuntu')
 
         print "Configuring {}".format(node1['ip'])
+        ssh.exec_command('~/reinit_hosts.sh')
+        time.sleep(1)
         print "setting up vxlan %s -> %s" %(node1, node2)
         print '~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s\n' %(node2['ip'], node2['ip'], vxlan_ip(node2['ip']), node2["name"])
         ssh.exec_command('~/add_vxlan.sh br-int vxlan-%s %s 10 %s %s' %(node2["ip"], node2["ip"], vxlan_ip(node2["ip"]), node2["name"]))
