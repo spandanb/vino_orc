@@ -32,7 +32,7 @@ def read_topology(filepath):
         return yaml.load(filedesc)
 
 def register_port_in_janus(dpid, ip, mac):
-        jd=JanusNetworkDriver(my_ip, 8091)
+        jd=JanusNetworkDriver('127.0.0.1', 8091)
         network_id_admin='__ADMIN__'
         try:
            jd.createNetwork(network_id_admin)
