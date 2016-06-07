@@ -115,11 +115,13 @@ def mesh(topology_filepath, servers):
             ssh.exec_command('~/setup_gw_routes.sh %s %s' %(vxlan_ip(node1['ip']), vxlan_ip(node2['ip'])))
             time.sleep(1)
 
-        if node1["role"] == "gateway" and node2["role"] == "server":
-            #NB: hardcoding the port
-            print '~/setup_iptables.sh %s %s %s\n' %(node1['ip'], vxlan_ip(node2['ip']), '80')
-            ssh.exec_command('~/setup_iptables.sh %s %s %s' %(node1['ip'], vxlan_ip(node2['ip']), '80'))
-            time.sleep(1)
+#        #forwards requests on port 80 from gateway to server
+#        #Not sure if this is necessary, since HAProxy should do exactly this 
+#        if node1["role"] == "gateway" and node2["role"] == "server":
+#            #NB: hardcoding the port
+#            print '~/setup_iptables.sh %s %s %s\n' %(node1['ip'], vxlan_ip(node2['ip']), '80')
+#            ssh.exec_command('~/setup_iptables.sh %s %s %s' %(node1['ip'], vxlan_ip(node2['ip']), '80'))
+#            time.sleep(1)
 
         ssh.close()
 
