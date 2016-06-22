@@ -7,7 +7,6 @@ from scp import SCPClient
 import json 
 import argparse
 from janus.network.network_driver import JanusNetworkDriver
-from itertools import permutations 
 import time
 
 ###########################################
@@ -23,7 +22,7 @@ def vxlan_ip(ip):
         return "192.168." + ".".join(ip.split(".")[2:])
         #return "172.16." + ".".join(ip.split(".")[2:])
 
-def read_topology(filepath):
+def read_yaml(filepath):
     """
     Reads the topology in the filepath specified
     """
@@ -57,15 +56,16 @@ def read_servers_json_file(servers_file='servers.json'):
 ###########################################
 #################### Main #################
 ###########################################
-def mesh(topology_filepath, servers): 
+def mesh(nodes_filepath, edges_filepath, servers): 
     ssh = SSHClient()
     ssh.set_missing_host_key_policy(AutoAddPolicy())
 
-    topology = read_topology(topology_filepath)
+    nodes = read_yaml(nodes_filepath)
+    edges = read_yaml(edges_filepath)
     #Filter out master node
-    topology = [node for node in topology if not node['role'] == 'master']
+    nodes = [node for node in nodes if not node['role'] == 'master']
 
-    for node in topology:
+    for node in nodes:
         #Initialize
         ssh.connect(node["ip"], username='ubuntu')
         scp = SCPClient(ssh.get_transport())
@@ -96,9 +96,13 @@ def mesh(topology_filepath, servers):
         register_port_in_janus(dpid, vxlan_ip(node["ip"]), p1_mac)
         ssh.close()
         
-    #Iterate over all possible binary pairings
-    #NB: permutation is okay, since each iter only acts on one node in each pair
-    for node1, node2 in permutations(topology, 2):
+    #edges defines a list of pair; we want the body to run for both nodes in pair
+    edges.extend(map(lambda pair: (pair[1], pair[0]), edges)
+    for node1, node2 in edges:
+        #edges only contains the names
+        node1 = next(node for node in nodes if node['name'] == node1)
+        node2 = next(node for node in nodes if node['name'] == node2)
+
         ssh.connect(node1["ip"], username='ubuntu')
 
         print "Configuring {}".format(node1['ip'])
@@ -130,13 +134,14 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Vino master command line interface')
     parser.add_argument('-i', '--ip-address', required=True, help="My IP address")
     parser.add_argument('-t', '--topology-file', required=True, help="The topology to mesh")
+    parser.add_argument('-n', '--nodes-file', required=True, help="The nodes to configure")
     args = parser.parse_args()
     
     global my_ip
     my_ip = args.ip_address
 
     servers = read_servers_json_file()
-    mesh(args.topology_file, servers)
+    mesh(args.topology_file, args.nodes_file, servers)
 
 if __name__ == "__main__":
     parse_args()
