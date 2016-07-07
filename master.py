@@ -96,8 +96,9 @@ def mesh(nodes_filepath, edges_filepath, servers):
         register_port_in_janus(dpid, vxlan_ip(node["ip"]), p1_mac)
         ssh.close()
         
-    #edges defines a list of pair; we want the body to run for both nodes in pair
-    edges.extend(map(lambda pair: (pair[1], pair[0]), edges)
+    #edges defines a list of pair; we want the body to run for both nodes in pair, i.e.
+    #[(node1, node2), ...] -> [(node1, node2), (node2, node1), ...]
+    edges.extend(map(lambda pair: (pair[1], pair[0]), edges))
     for node1, node2 in edges:
         #edges only contains the names
         node1 = next(node for node in nodes if node['name'] == node1)
@@ -133,7 +134,7 @@ def mesh(nodes_filepath, edges_filepath, servers):
 def parse_args():
     parser = argparse.ArgumentParser(description='Vino master command line interface')
     parser.add_argument('-i', '--ip-address', required=True, help="My IP address")
-    parser.add_argument('-t', '--topology-file', required=True, help="The topology to mesh")
+    parser.add_argument('-e', '--edges-file', required=True, help="The topology to mesh")
     parser.add_argument('-n', '--nodes-file', required=True, help="The nodes to configure")
     args = parser.parse_args()
     
@@ -141,7 +142,7 @@ def parse_args():
     my_ip = args.ip_address
 
     servers = read_servers_json_file()
-    mesh(args.topology_file, args.nodes_file, servers)
+    mesh(args.nodes_file, args.edges_file, servers)
 
 if __name__ == "__main__":
     parse_args()
