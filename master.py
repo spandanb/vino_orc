@@ -9,6 +9,11 @@ import argparse
 from janus.network.network_driver import JanusNetworkDriver
 import time
 
+import sys, os
+sys.path.append("/home/ubuntu/openvpn")
+import gen_openvpn 
+
+
 ###########################################
 ################ Globals ##################
 ###########################################
@@ -56,6 +61,43 @@ def read_servers_json_file(servers_file='servers.json'):
 ###########################################
 #################### Main #################
 ###########################################
+def secmesh(nodes_filepath, edges_filepath, servers):
+    """
+    Similar to `mesh`, except creates secure tunnels
+    """
+    ssh = SSHClient()
+    ssh.set_missing_host_key_policy(AutoAddPolicy())
+
+    nodes = read_yaml(nodes_filepath)
+    edges = read_yaml(edges_filepath)
+    #Filter out master node
+    nodes = [node for node in nodes if not node['role'] == 'master']
+
+    gen_openvpn.main()
+    os.system("cd ../openvpn/bridge0 && ./run.sh")
+
+    for node in nodes:
+        ssh.connect(node["ip"], username='ubuntu')
+
+        #get q1 mac
+        stdin, stdout, stderr = ssh.exec_command('sudo ovs-vsctl get interface q1 mac')
+        stdin.close()
+        iface_mac = stdout.readlines().strip('\n').strip('"')
+
+        #get dpid of bridge
+        stdin, stdout, stderr = ssh.exec_command("sudo ovs-vsctl get bridge br-int datapath_id")
+        stdin.close()
+        dpid = stdout.readlines().strip('\n').strip('"')
+
+        stdin, stdout, stderr = ssh.exec_command("ifconfig tap.")
+        ipaddr = stdout.readlines()
+
+        print "{} iface_mac={} dpid={}".format(node["ip"], iface_mac, dpid)
+        print ipaddr
+        
+        #register_port_in_janus(dpid, <<ip>>, iface_mac)
+
+#TODO: rename, since this does arbitrary topology
 def mesh(nodes_filepath, edges_filepath, servers): 
     ssh = SSHClient()
     ssh.set_missing_host_key_policy(AutoAddPolicy())
@@ -142,7 +184,8 @@ def parse_args():
     my_ip = args.ip_address
 
     servers = read_servers_json_file()
-    mesh(args.nodes_file, args.edges_file, servers)
+    #mesh(args.nodes_file, args.edges_file, servers)
+    secmesh(args.nodes_file, args.edges_file, servers)
 
 if __name__ == "__main__":
     parse_args()
