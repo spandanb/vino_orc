@@ -12,7 +12,6 @@ from scp import SCPClient
 import random
 from janus.network.network_driver import JanusNetworkDriver
 import threading
-from get_ip import get_ext_ip 
 
 lock = threading.Lock()
 
@@ -63,8 +62,7 @@ def new_slave_added(new_slave_ip, slave_name):
         slave_role = slave_info.get('role', None)
         ssh=SSHClient()
         ssh.set_missing_host_key_policy(AutoAddPolicy())
-        #ssh.connect(new_slave_ip, username='ubuntu', password='savi')
-        ssh.connect(new_slave_ip, username='ubuntu')
+        ssh.connect(new_slave_ip, username='ubuntu', password='savi')
         scp = SCPClient(ssh.get_transport())
         print "putting setup files"
         scp.put('setup_br.sh', '~/setup_br.sh')
@@ -185,31 +183,28 @@ def timer_thread_func():
 def main(argv):
         global my_ip
         checkport = 5000
-#TODO: uncomment the following and properly refactor
-#	try:
-#		opts, args = getopt.getopt(sys.argv[1:],"hi:c:",["myip=","port="])
-#	except getopt.GetoptError:
-#		print 'manager.py -i <my ip address> -c <my port=5000>'
-#		opts = []
-#                pass
-#	for opt, arg in opts:
-#		if opt == '-h':
-#			print 'manager.py -i <my ip address> -c <my port=5000>'
-#			sys.exit()
-#		elif opt in ("-i", "--myip"):
-#			try:
-#				my_ip = arg
-#                        except:
-#				pass
-#		elif opt in ("-c", "--port"):
-#			try:
-#				checkport = int(arg)
-#                        except:
-#				pass
+	try:
+		opts, args = getopt.getopt(sys.argv[1:],"hi:c:",["myip=","port="])
+	except getopt.GetoptError:
+		print 'manager.py -i <my ip address> -c <my port=5000>'
+		opts = []
+                pass
+	for opt, arg in opts:
+		if opt == '-h':
+			print 'manager.py -i <my ip address> -c <my port=5000>'
+			sys.exit()
+		elif opt in ("-i", "--myip"):
+			try:
+				my_ip = arg
+                        except:
+				pass
+		elif opt in ("-c", "--port"):
+			try:
+				checkport = int(arg)
+                        except:
+				pass
         print "my IP address: %s" %my_ip
         print "my port : %s" %checkport
-        my_ip = get_ext_ip()
-
         if my_ip == '':
                 print "my ip is not specified!"
                 sys.exit()
